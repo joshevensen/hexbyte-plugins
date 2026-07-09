@@ -5,7 +5,7 @@ Issue-to-PR automation for a GitHub-issue-driven workflow. You author specs inte
 Part of the `hexbyte` marketplace. Install:
 
 ```
-/plugin marketplace add joshevensen/agents
+/plugin marketplace add joshevensen/hexbyte-plugins
 /plugin install orc@hexbyte
 ```
 

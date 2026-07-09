@@ -5,7 +5,7 @@ Editorial workflow for long-form blog posts: brainstorm, develop, write, review,
 Part of the `hexbyte` marketplace. Install:
 
 ```
-/plugin marketplace add joshevensen/agents
+/plugin marketplace add joshevensen/hexbyte-plugins
 /plugin install ink@hexbyte
 ```
 
