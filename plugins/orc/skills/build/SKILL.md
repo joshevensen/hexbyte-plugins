@@ -187,9 +187,11 @@ finding. Warnings are noted in the PR and do not block.
 
 ### 11. Docblocks + changelog
 
-Update file-level docblocks for changed files. Invoke `changelog-writer` and
-insert its `## [Unreleased]` block into `CHANGELOG.md` if the repo keeps one.
-Commit and push any changes.
+Update file-level docblocks for changed files. If the repo keeps a
+`CHANGELOG.md`, invoke `changelog-writer` and insert its entry at the placement
+it specifies — its output leads with a `Placement:` line naming exactly where
+the blocks go (an existing `## [Unreleased]` section, a new version heading,
+etc.). Commit and push any changes.
 
 ### 12. Open PR
 
