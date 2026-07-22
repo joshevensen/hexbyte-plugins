@@ -16,6 +16,10 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 - `deploy-risk-scanner` and `changelog-writer`'s descriptions no longer assume a fixed PR-existence timing, since that now differs between `build`, `push`, and `bump`
 - `push`'s description reworded away from "changes you made by hand" / "local sibling of build" — that framing describes a local-IDE pattern (hand-editing outside Claude's view) that doesn't occur on Claude Code web. Its actual value — reviewing and PR'ing changes made directly in conversation without the create/plan/build ceremony — applies equally to both, so the wording now says that instead
 
+### Fixed
+- `setup` ran `manage-labels --prune` unconditionally on every run, silently deleting any label outside the managed set (a custom label you'd added yourself included) every single time — not just once. Pruning is now a separate, deliberate action, never part of the default flow
+- `setup`'s `## CI-Only Verification` section had no "already present, skip" check, unlike the other two `CLAUDE.md` sections — a rerun could re-propose or duplicate it. Now skips if the section already exists, matching the other two
+
 ## [0.3.0]
 
 ### Added

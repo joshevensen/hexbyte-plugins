@@ -49,9 +49,17 @@ If either fails, stop with instructions:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/setup/scripts/manage-labels {owner}/{repo}
-${CLAUDE_PLUGIN_ROOT}/skills/setup/scripts/manage-labels {owner}/{repo} --prune
 ${CLAUDE_PLUGIN_ROOT}/skills/setup/scripts/migrate-labels {owner}/{repo}
 ```
+
+Upsert and migrate are safe to run every time — both only ever create, edit,
+or remap, never delete. **Don't run `manage-labels --prune` as part of this
+default flow** — it deletes any label outside the managed set (anything you
+added yourself included; only `blocked:*` and `github-actions` are exempt),
+and doing that unconditionally on every `/orc:setup` run would silently eat a
+custom label the moment someone adds one. If the user explicitly asks to
+clean up unmanaged labels, run `--prune` then, as its own deliberate step —
+never bundle it into a routine setup run.
 
 If migration reports unrecognized labels, reason about intent and apply
 `gh issue edit` manually.
@@ -107,11 +115,13 @@ touching existing content.
 `build` gates on `## Verification` (or `## Focused Verification`) being present;
 without them it gates immediately on every issue.
 
-While scanning, also check for heavy/slow suites — `playwright.config.*`,
-`cypress.config.*`, or script names containing `e2e`/`playwright`/`cypress`/
-`browser`. If found, propose a third, optional section (same show/confirm
-flow; skip silently if declined or nothing heavy is found — `build` doesn't
-gate on this one):
+**If `CLAUDE.md` already has a `## CI-Only Verification` section, skip this
+entirely** — same rule as the two sections above, never re-propose or touch
+something already there. Otherwise, while scanning, also check for heavy/slow
+suites — `playwright.config.*`, `cypress.config.*`, or script names containing
+`e2e`/`playwright`/`cypress`/`browser`. If found, propose a third, optional
+section (same show/confirm flow; skip silently if declined or nothing heavy is
+found — `build` doesn't gate on this one):
 ```
 ## CI-Only Verification
 Suites listed here are never run by `build`, not even scoped — CI is the
