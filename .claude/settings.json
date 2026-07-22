@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "hexbyte": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  },
+  "enabledPlugins": {
+    "orc@hexbyte": true,
+    "ink@hexbyte": true
+  }
+}
