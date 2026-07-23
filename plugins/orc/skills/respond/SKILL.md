@@ -4,13 +4,12 @@ description: Fetch unresolved comments you left on a PR and implement what they 
 model: sonnet
 ---
 
-`respond` is the manual counterpart to watching a PR live: nothing subscribes
-to webhooks or polls in the background. You run `/orc:respond` after leaving
-comments on your own PR yourself — each one is treated as an instruction to
-carry out, not a suggestion to weigh. It implements every unresolved comment
-directly, commits, pushes, and stops — no CI check, no mergeability check, no
-merge. Use `resume` for CI/mergeability once the comments are settled, and
-merge the PR yourself.
+`respond` only acts when you run it — nothing subscribes to webhooks or polls
+in the background. You run `/orc:respond` after leaving comments on your own
+PR yourself — each one is treated as an instruction to carry out, not a
+suggestion to weigh. It implements every unresolved comment directly, commits,
+pushes, and stops — no CI check, no mergeability check, no merge. Use `resume`
+for CI/mergeability once the comments are settled, and merge the PR yourself.
 
 ## `--dry-run`
 
