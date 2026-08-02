@@ -15,11 +15,18 @@ never posts a GitHub comment, and never runs a command that mutates state.
 With no argument, stop and ask what to explain — a file path, a PR number,
 or a PR URL. Don't guess and don't default to the current branch's PR.
 
-Otherwise classify the argument:
+Otherwise classify the argument strictly — this decides which command runs
+next, so match it against a fixed shape rather than guessing:
 
-- A number, or a `github.com/.../pull/{number}` URL → a PR. Continue to
-  step 2.
+- The whole argument matches `^#?[0-9]+$` (an optional leading `#`) → a PR;
+  the number is the digits, with any leading `#` stripped.
+- The whole argument matches `^https?://github\.com/[^/]+/[^/]+/pull/[0-9]+$`
+  (a `github.com` pull-request URL) → a PR; the number is the trailing
+  digits.
 - Anything else → treat it as a file path. Continue to step 3.
+
+If it matches one of the PR shapes, continue to step 2 with the extracted
+number as `{pr}` — never pass the raw argument through uninspected.
 
 ### 2. PR target
 
@@ -36,9 +43,16 @@ summarize by area rather than truncating silently.
 
 ### 3. File target
 
-Read the file. If it does not exist, stop with `No such file: {path}`. If
-it is very large, read it in full where practical; otherwise summarize
-structurally and say which parts were skimmed.
+The path must resolve inside the current repository's working tree — never
+read a path that resolves outside it (via `..`, an absolute path outside the
+repo, or a symlink escaping it), and never read known-credential files
+(`.env`, SSH keys, cloud credential files, etc.) even if they're in-tree.
+Refuse with a one-line reason instead of reading.
+
+Otherwise, read the file. If it does not exist, stop with
+`No such file: {path}`. If it is very large, read it in full where
+practical; otherwise summarize structurally and say which parts were
+skimmed.
 
 ### 4. Summarize
 
