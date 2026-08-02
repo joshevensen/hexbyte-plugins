@@ -56,6 +56,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:list` | List open issues, optionally filtered by status |
 | `/orc:bump` | Review and merge Dependabot grouped PRs when safe |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
+| `/orc:explain` | Explain what a file or PR is doing in plain language — read-only chat reply, nothing posted |
 | `/orc:setup` | Scaffold a repo for orc — labels, `.orc/`, `CLAUDE.md` sections, PR template, CHANGELOG, dependabot |
 
 ## The pipeline

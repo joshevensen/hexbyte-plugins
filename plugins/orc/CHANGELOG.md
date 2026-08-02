@@ -2,6 +2,11 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.6.0]
+
+### Added
+- `/orc:explain` — explain what a file or a PR is doing in plain language, as a chat reply. Read-only: it never writes files, never posts a GitHub comment, and never runs a command that mutates state. For a file, reads it and summarizes purpose, key behaviors, and dependencies; for a PR, fetches its description and diff (`gh pr view` / `gh pr diff`) and summarizes what changed and why. Output is a chat reply only
+
 ## [0.5.0]
 
 ### Added
