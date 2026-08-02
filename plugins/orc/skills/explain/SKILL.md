@@ -49,24 +49,24 @@ this decides which command runs next, so match it against a fixed shape
 rather than guessing:
 
 1. The whole argument matches `^#?[0-9]+$` (an optional leading `#`) → a PR;
-   the number is the digits, with any leading `#` stripped. Continue to
-   step 2.
+   `{pr}` is the digits, with any leading `#` stripped — never the raw
+   argument. Continue to step 2.
 2. The whole argument matches
    `^https?://github\.com/[^/]+/[^/]+/pull/[0-9]+$` (a `github.com`
-   pull-request URL) → a PR; the number is the trailing digits. Continue to
-   step 2.
-3. The argument names a path that exists → a file target. Continue to step 3.
-   (Existence is checked here only to pick a branch; step 3's scope guard
-   still runs before any read.)
+   pull-request URL) → a PR; `{pr}` is the trailing digits — never the raw
+   argument. Continue to step 2.
+3. The argument names a path that exists, checked relative to the current
+   repository's working tree → a file target. Continue to step 3. (Existence
+   is checked here only to pick a branch; step 3's scope guard still runs
+   before any read.)
 4. The argument doesn't exist as a path and is route-shaped → a route
    target. Continue to step 4. Route-shaped means: starts with `/`, or is an
    http/https URL that is not a GitHub pull-request URL (the URL's path
-   component is the route).
+   component is the route). This is deliberate: a path starting with `/`
+   that doesn't exist would previously have failed with `No such file` —
+   now it gets one more shot as a route before failing.
 5. Anything else → treat it as a file target. Continue to step 3, which
    stops with `No such file: {path}` as today.
-
-If it matches one of the PR shapes, continue to step 2 with the extracted
-number as `{pr}` — never pass the raw argument through uninspected.
 
 ### 2. PR target
 
@@ -101,6 +101,19 @@ full URL, keep only the path component; strip a trailing `/` except for the
 root route `/`. Call the normalized value `{route}`; its `/`-separated
 pieces are its segments.
 
+Before searching: `{route}` is untrusted input, exactly like the file path in
+step 3. Treat it as a literal string to search for — never build or run a
+shell command that interpolates it unescaped, and use exact/literal search
+matching rather than passing it through as part of a glob or regex. Every
+search below must also exclude known-credential files and paths (`.env`, SSH
+keys, cloud credential files, `node_modules`/`vendor`/build directories,
+anything outside the repository's working tree) — this repo-scope-and-secrets
+constraint is the same one step 3 states for a direct file read, applied here
+to the search itself rather than just to whichever file ends up read; a
+candidate resolving outside the working tree or to a credential file is
+never a candidate, at any stage, including anything the route-table
+strategy's handler-following step points at.
+
 This skill runs against arbitrary target repos, including ones with no app
 or routes at all — so detect the project's shape rather than assuming a
 framework. Take a cheap read first: look for `next.config.*`, `app/` or
@@ -127,8 +140,10 @@ Then try these strategies in order, stopping at the first candidate found:
   vendor/build/dependency directories.
 
 A candidate is acceptable only if it is a file that exists and was found by
-one of the strategies above. If more than one candidate turns up, explain
-the highest-ranked one and name the others as alternates. If all three
+one of the strategies above. If more than one candidate turns up in the same
+strategy, prefer the one matching the framework signals from the cheap shape
+detection above; if that doesn't distinguish them either, explain the
+alphabetically-first path and name the rest as alternates. If all three
 strategies yield nothing, stop and report exactly this line:
 
 ```
@@ -136,12 +151,6 @@ Couldn't confidently locate code for {route} — no matching route/page file fou
 ```
 
 No best-guess fallback, no invented file names.
-
-Step 3's scope guard applies here too, to every file this route resolution
-lands on: never read a path that resolves outside the current repository's
-working tree, and never read known-credential files (`.env`, SSH keys,
-cloud credential files, etc.) even if they're in-tree — refuse with a
-one-line reason instead of reading.
 
 Beyond the resolved entry file, read closely related code needed to explain
 the page or endpoint — the controller/view/handler it delegates to, the
