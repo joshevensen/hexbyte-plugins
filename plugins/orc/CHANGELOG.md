@@ -2,6 +2,26 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.7.0]
+
+### Added
+- `/orc:explain` now accepts a **route or URL** as a target, alongside file
+  paths and PRs. It takes a cheap read of the project's shape (`next.config.*`,
+  `app/`/`pages/` dirs, `src/routes/`, `config/routes.rb`, `urls.py`, an
+  express/koa/fastify dependency, a router file) and then tries, in order:
+  file-based routing (including dynamic-segment spellings like `[id]`/`:id`),
+  route-table declarations (`config/routes.rb`, `urls.py`,
+  `app.get(`/`router.`/`createBrowserRouter`/`<Route path=`) followed to their
+  handler, then a plain-text repo search. If nothing is found by any strategy,
+  it stops with an explicit no-guess failure message rather than inventing a
+  file
+- Three optional **depth flags** — `--junior`, `--intermediate`, `--senior` —
+  apply to every target kind (file, route, PR). `--intermediate` is the
+  unchanged default; `--junior` explains more (jargon, the "why" behind
+  patterns, no assumed framework familiarity); `--senior` explains less
+  (assumes familiarity, focuses on non-obvious tradeoffs/risks/gotchas).
+  Flags may appear before or after the target in any order
+
 ## [0.6.0]
 
 ### Added
