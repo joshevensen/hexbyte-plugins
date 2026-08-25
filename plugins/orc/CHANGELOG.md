@@ -2,6 +2,16 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.10.0]
+
+### Changed
+- `/orc:respond` no longer skips comments from other authors (Copilot's
+  automatic review, other bots, other human reviewers) outright. It now
+  judges each one on its merits: acts on it, replies, and resolves the
+  thread if it holds up; replies with why not and resolves it if it
+  doesn't. Comments you left yourself are still treated as unconditional
+  instructions, as before
+
 ## [0.9.0]
 
 ### Changed
