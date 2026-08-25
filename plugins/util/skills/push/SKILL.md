@@ -8,7 +8,7 @@ model: sonnet
 
 ## `--dry-run`
 
-`/orc:push --dry-run` runs the size check and commits locally (step 5) exactly
+`/util:push --dry-run` runs the size check and commits locally (step 5) exactly
 as normal — real commits on a real local branch, inspectable with `git log` /
 `git diff origin/main...HEAD`. It skips `git push` there and everywhere after.
 Step 6's `gh pr create` is skipped (print the title/body it would have used

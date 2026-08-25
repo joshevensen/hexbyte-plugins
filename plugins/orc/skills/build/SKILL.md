@@ -121,7 +121,7 @@ a large but well-specified issue passes. Only genuine ambiguity gates here.
 
 If `CLAUDE.md` has no `## Verification` section (and no `## Focused Verification`
 section), there is no way to prove the build is sound → **gate: missing infra**
-(run `/orc:setup`).
+(run `/util:setup`).
 
 ### 5. Branch + draft PR
 
