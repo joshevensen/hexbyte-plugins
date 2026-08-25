@@ -10,6 +10,11 @@
       "description": "Issue-to-PR automation: discuss and spec issues interactively, then build them autonomously with parallel subagents, focused verification, and a folded-in AI review, for a GitHub-issue-driven workflow."
     },
     {
+      "name": "util",
+      "source": "./plugins/util",
+      "description": "Utility skills for the orc pipeline: quick commit/review/PR, Dependabot triage, issue-status listing, and repo scaffolding."
+    },
+    {
       "name": "ink",
       "source": "./plugins/ink",
       "description": "Editorial workflow for long-form blog posts: brainstorm, develop, write, review, and publish."

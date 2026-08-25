@@ -6,7 +6,7 @@ model: sonnet
 
 ## `--dry-run`
 
-`/orc:bump --dry-run` runs steps 1-5 exactly as normal — repo/PR discovery,
+`/util:bump --dry-run` runs steps 1-5 exactly as normal — repo/PR discovery,
 the OSV/npm/major-version checks, and the parallel review agents are all
 read-only already. Only step 6 mutates: skip `gh pr merge`, and in CI fix
 mode skip the commit/push (still invoke `ci-debugger` and show its diagnosis,

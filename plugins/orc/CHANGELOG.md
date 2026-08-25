@@ -2,6 +2,18 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.9.0]
+
+### Changed
+- `/orc:push`, `/orc:bump`, `/orc:list`, and `/orc:setup` moved to the new
+  `util` plugin (`util@hexbyte`) — install it alongside `orc` to keep using
+  them, now as `/util:push`, `/util:bump`, `/util:list`, `/util:setup`.
+  `orc` keeps the create → plan → build pipeline itself
+  (`create`/`plan`/`do`/`build`/`resume`/`respond`/`discuss`/`explain`) plus
+  every agent and template that pipeline depends on — nothing `build` or
+  `resume` use was removed, since `util`'s `push`/`bump` needed copies of the
+  same review agents and `ai-review.md` template, not the originals
+
 ## [0.8.0]
 
 ### Added

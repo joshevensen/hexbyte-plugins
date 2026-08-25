@@ -18,13 +18,13 @@ reliably done as one command than a manual checklist — most importantly the
 
 ## `--dry-run`
 
-`/orc:setup --dry-run` still writes every local file it would normally write
+`/util:setup --dry-run` still writes every local file it would normally write
 — `CLAUDE.md` sections, the PR template, `CHANGELOG.md`, `dependabot.yml`,
 `.orc/` — since previewing exactly those files is the point, and none of it
 is pushed. Pass `--dry-run` through to both label scripts in step 2 (they
 support it directly and print what would change instead of calling `gh
 label`). Skip step 8 entirely — nothing gets committed, pushed, or handed to
-`/orc:push`. End with:
+`/util:push`. End with:
 ```
 DRY RUN — files written for review: {list}. Labels: see step 2 output above.
 Nothing committed or pushed. Re-run without --dry-run to commit and open a PR.
@@ -62,7 +62,7 @@ Upsert and migrate are safe to run every time — both only ever create, edit,
 or remap, never delete. **Don't run `manage-labels --prune` as part of this
 default flow** — it deletes any label outside the managed set (anything you
 added yourself included; only `blocked:*` and `github-actions` are exempt),
-and doing that unconditionally on every `/orc:setup` run would silently eat a
+and doing that unconditionally on every `/util:setup` run would silently eat a
 custom label the moment someone adds one. If the user explicitly asks to
 clean up unmanaged labels, run `--prune` then, as its own deliberate step —
 never bundle it into a routine setup run.
@@ -168,7 +168,7 @@ If nothing was created or modified locally, skip to step 9 — GitHub-only chang
 git status --short
 ```
 
-Stage only files this setup run touched, then hand off to `/orc:push` with the
+Stage only files this setup run touched, then hand off to `/util:push` with the
 message `chore: configure orc` to commit, review, and open the PR. Merge it
 yourself.
 

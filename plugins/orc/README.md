@@ -52,13 +52,13 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:do` | Run create → plan → build for one simple issue in a single pass — for work small enough that three separate commands are overhead |
 | `/orc:build` | Take a specced issue to an open PR: draft PR on branch, task list → parallel build with live per-wave commits → focused verify → mark ready for review → AI review → merge readiness. Never merges |
 | `/orc:resume` | Continue a blocked build whose PR already reached ready-for-review — re-checks review freshness, then CI/mergeability, no rebuild |
-| `/orc:push` | Commit working-tree changes → review → push → open PR (no merge) |
 | `/orc:respond` | Manually fetch unresolved comments you left on your own PR and implement each one directly — no per-item confirmation (no subscription, no merge) |
-| `/orc:list` | List open issues, optionally filtered by status |
-| `/orc:bump` | Review and merge Dependabot grouped PRs when safe |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
 | `/orc:explain` | Explain what a file, route, or PR is doing in plain language, at junior/intermediate/senior depth — read-only chat reply, nothing posted |
-| `/orc:setup` | Scaffold a repo for orc — labels, `.orc/`, `CLAUDE.md` sections, PR template, CHANGELOG, dependabot |
+
+`/orc:push`, `/orc:bump`, `/orc:list`, and `/orc:setup` moved to the
+[`util`](../util) plugin — install `util@hexbyte` alongside `orc` to keep
+using them.
 
 ## The pipeline
 
@@ -138,8 +138,9 @@ There is **no scope gate** — issue size never stops a build.
 
 ## `--dry-run`
 
-Every skill that writes to GitHub or pushes (`create`, `plan`, `build`,
-`push`, `bump`, `resume`, `setup`) accepts a trailing `--dry-run`. Local
+Every skill that writes to GitHub or pushes (`create`, `plan`, `do`, `build`,
+`resume` here, plus `push`/`bump`/`setup` in `util`) accepts a trailing
+`--dry-run`. Local
 git commits and local file writes still happen — so you can inspect real
 output with `git log`/`git diff` — but `git push` and every GitHub-mutating
 `gh` call (issue/PR/label create, edit, comment, merge) are skipped and

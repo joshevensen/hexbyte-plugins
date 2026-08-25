@@ -30,7 +30,7 @@ Require an issue number (`/orc:plan {number}`). Invoke `issue-loader` with it.
 Use the returned title, body, labels, and any existing spec comment.
 
 Set it to `status:draft` while a spec is being written or revised. Create
-both labels defensively first — idempotent, a no-op once `/orc:setup` or a
+both labels defensively first — idempotent, a no-op once `/util:setup` or a
 prior run has already made them, but `--add-label` 404s on a label that's
 never existed in the repo at all:
 
