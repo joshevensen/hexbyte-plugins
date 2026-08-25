@@ -1,21 +1,30 @@
 ---
 name: respond
-description: Fetch unresolved comments you left on a PR and implement what they ask for directly — no interactive per-item confirmation. Manually triggered, never watches or subscribes to a PR. Never merges. Invoke as /orc:respond [pr].
+description: Fetch unresolved PR comments — yours and everyone else's — and resolve them, no interactive per-item confirmation. Manually triggered, never watches or subscribes to a PR. Never merges. Invoke as /orc:respond [pr].
 model: sonnet
 ---
 
 `respond` only acts when you run it — nothing subscribes to webhooks or polls
-in the background. You run `/orc:respond` after leaving comments on your own
-PR yourself — each one is treated as an instruction to carry out, not a
-suggestion to weigh. It implements every unresolved comment directly, commits,
-pushes, and stops — no CI check, no mergeability check, no merge. Use `resume`
-for CI/mergeability once the comments are settled, and merge the PR yourself.
+in the background. It walks every unresolved comment on the PR — yours and
+everyone else's — implements, commits, pushes, and stops — no CI check, no
+mergeability check, no merge. Use `resume` for CI/mergeability once the
+comments are settled, and merge the PR yourself.
 
-**Only comments authored by you count as instructions.** A PR often also
-carries comments from other sources — Copilot's automatic review, other bots,
-other human reviewers. Those are never implemented, replied to, or resolved by
-this skill, no matter how unresolved or emphatic they look. If you want one of
-them acted on, restate it yourself as your own comment first.
+**Comments authored by you are instructions, not suggestions.** Treat each
+one as a direct order to carry out — implement it (or answer it) exactly as
+written, no second-guessing whether it's a good idea, then close it out.
+
+**Comments from anyone else — Copilot's automatic review, other bots, other
+human reviewers — get judged before being acted on.** For each one, decide
+whether it's accurate and worth acting on:
+- If it holds up: make the change (or take the action it asks for), reply
+  saying what you did, and resolve the thread.
+- If it doesn't — wrong, already handled, out of scope, or not worth doing —
+  reply explaining why not, and resolve the thread. Don't implement it, and
+  don't resolve it without leaving that reply.
+
+A non-author comment always gets a reply, whether or not you act on it —
+silence isn't an option there the way it can be for your own comments.
 
 ## `--dry-run`
 
@@ -54,11 +63,9 @@ git fetch origin main
 me=$(gh api user --jq .login)
 ```
 
-Every comment or thread pulled below is checked against `{me}`. Anything
-authored by someone else is dropped as an actionable instruction: not implemented,
-not replied to, not resolved, not counted in the final report. Other-user
-comments may still be consulted only to decide whether one of your earlier
-comments was already addressed.
+Every comment or thread pulled below is tagged against `{me}` — authored by
+you, or by someone else — since step 3 treats the two differently. Nothing is
+dropped at this stage purely for authorship.
 
 **Unresolved review threads** (inline comments left via a "Files changed" review):
 
@@ -81,33 +88,34 @@ gh api graphql -f query='
       }
     }
   }' -f owner={owner} -f repo={repo} -F pr={pr} \
-  --jq --arg me "$me" \
-  '.data.repository.pullRequest.reviewThreads.nodes[]
-   | select(.isResolved == false and (.comments.nodes[0].author.login == $me))'
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
 ```
 
 A thread's authorship is decided by its **first** comment — the one that
-opened it. If you didn't open it, skip the whole thread, even if you (or
-anyone else) replied in it later.
+opened it — regardless of who replied afterward.
 
 **Unanswered general PR comments** (top-level conversation, not tied to a review):
 
 ```bash
-gh pr view {pr} --json comments --jq --arg me "$me" \
-  '.comments | map(select(.author.login == $me))'
+gh pr view {pr} --json comments --jq '.comments'
 ```
 
-Walk that filtered (you-authored-only) list in order. A comment counts as
-unanswered only if **no later comment in the full original list** — from
-anyone — already addresses it; treat an obvious follow-up of your own
-("nvm, ignore that") as closing it out.
+Walk the full list in order. A comment counts as unanswered if **no later
+comment in the list** — from anyone — already addresses it; treat an obvious
+follow-up ("nvm, ignore that") as closing out the comment it follows,
+regardless of who wrote either one.
 
 If both sources are empty, report `Nothing unresolved on PR #{pr}.` and stop.
 
-### 3. Implement every item
+### 3. Work every item
 
-Treat each unresolved thread and unanswered comment as a direct instruction —
-no per-item confirmation. For each, in order:
+Walk each unresolved thread and unanswered comment in order. Branch on who
+opened it (the thread's first comment, or the general comment itself).
+
+#### Items authored by you
+
+Treat it as a direct instruction — no second-guessing, no per-item
+confirmation:
 
 - **A request for a code change** ("do X", "this should Y", "fix Z"):
   implement it, then commit:
@@ -121,10 +129,34 @@ no per-item confirmation. For each, in order:
     `addPullRequestReviewThreadReply` with the thread `id` and `{reply}` body.
 - **Genuinely ambiguous** (conflicting with another comment, or unclear what
   change is wanted): don't guess — reply asking for clarification the same
-  way as a question, and leave the thread unresolved.
+  way as a question, and leave the thread unresolved (skip the resolve step
+  below for it).
 
-After implementing or answering a **review thread**, resolve it (skip this
-for a thread left open pending clarification):
+#### Items authored by someone else (Copilot, other bots, other reviewers)
+
+Read the comment on its merits — is it accurate, and does it actually call
+for something? Then:
+
+- **Holds up and is actionable**: implement the change (or do what it asks),
+  then commit:
+  ```bash
+  git commit -am "address review ({author}): {brief description}"
+  ```
+  and reply saying what you did.
+- **Doesn't hold up** — factually wrong, already handled elsewhere in the
+  diff, out of scope for this PR, or a stylistic take you're not taking —
+  don't implement it. Reply explaining why not, in one or two sentences.
+- **Genuine open question you can't resolve unilaterally** (e.g. it's asking
+  the PR author to make a call that affects the design): reply with your
+  read on it, and leave the thread unresolved if it still needs a human
+  answer rather than yours.
+
+Every non-author item gets a reply either way — never resolve one silently.
+
+#### Resolving
+
+After acting on or replying to a **review thread**, resolve it (skip this
+only for a thread left open pending clarification/a human answer):
 ```bash
 gh api graphql -f query='
   mutation($id:ID!) { resolveReviewThread(input:{threadId:$id}) { thread { id } } }
@@ -142,6 +174,7 @@ git push
 ### 5. Report
 
 ```
-PR #{pr}: {n} implemented and pushed, {m} answered, {k} left open for clarification.
+PR #{pr}: {n} implemented and pushed, {m} answered, {d} declined with reason,
+{k} left open for clarification.
 Run /orc:resume {issue-number} for CI/mergeability, or merge yourself when ready.
 ```

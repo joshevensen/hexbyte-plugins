@@ -52,7 +52,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:do` | Run create → plan → build for one simple issue in a single pass — for work small enough that three separate commands are overhead |
 | `/orc:build` | Take a specced issue to an open PR: draft PR on branch, task list → parallel build with live per-wave commits → focused verify → mark ready for review → AI review → merge readiness. Never merges |
 | `/orc:resume` | Continue a blocked build whose PR already reached ready-for-review — re-checks review freshness, then CI/mergeability, no rebuild |
-| `/orc:respond` | Manually fetch unresolved comments you left on your own PR and implement each one directly — no per-item confirmation (no subscription, no merge) |
+| `/orc:respond` | Manually fetch every unresolved PR comment — yours and everyone else's — and resolve each one: your own are instructions, others are judged before acting (no subscription, no merge) |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
 | `/orc:explain` | Explain what a file, route, or PR is doing in plain language, at junior/intermediate/senior depth — read-only chat reply, nothing posted |
 
