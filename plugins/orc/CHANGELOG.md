@@ -2,6 +2,16 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.8.0]
+
+### Added
+- `/orc:do` — run `create`, `plan`, and `build` back to back for one simple
+  issue in a single pass, instead of three separate commands. Condensed only
+  where it's safe (skips `create`'s multi-exchange discussion, filing
+  straight from the supplied description); every gate stays intact — an open
+  question, a needed issue split, or a spec that turns out to need more than
+  one wave stops it and hands off to the normal stage-by-stage commands
+
 ## [0.7.0]
 
 ### Added

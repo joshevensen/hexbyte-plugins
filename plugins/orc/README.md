@@ -49,6 +49,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 |---|---|
 | `/orc:create` | Discuss an idea at the scope level and produce GitHub issue(s) — no spec |
 | `/orc:plan` | Research the codebase and write a build-ready spec onto an issue |
+| `/orc:do` | Run create → plan → build for one simple issue in a single pass — for work small enough that three separate commands are overhead |
 | `/orc:build` | Take a specced issue to an open PR: draft PR on branch, task list → parallel build with live per-wave commits → focused verify → mark ready for review → AI review → merge readiness. Never merges |
 | `/orc:resume` | Continue a blocked build whose PR already reached ready-for-review — re-checks review freshness, then CI/mergeability, no rebuild |
 | `/orc:push` | Commit working-tree changes → review → push → open PR (no merge) |
