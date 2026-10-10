@@ -354,13 +354,16 @@ Invoke `pr-context-writer` with the issue number and body, the spec, the
 decision log, step 10's WARNING findings, `{pr}`, `git rev-parse HEAD`, and
 the output paths `.orc/tmp/{number}-pr-body.md` and
 `.orc/tmp/{number}-context.json`. Then post what it wrote — the body, the line
-comments as one review (skip the review when there are none), and each
-file-level comment (the review endpoint doesn't take file-level comments):
+comments as one review with no summary body (a submitted review can't be
+deleted, so a summary would pile up on every rerun; skip the review when there
+are no line comments), and each file-level comment (the review endpoint
+doesn't take file-level comments). The PR body's `<!-- orc:context sha:… -->`
+first line is what marks context as posted — not the review:
 
 ```bash
 gh pr edit {pr} --body-file .orc/tmp/{number}-pr-body.md
 if jq -e '.comments | length > 0' .orc/tmp/{number}-context.json >/dev/null; then
-  jq '{commit_id, event, body, comments}' .orc/tmp/{number}-context.json \
+  jq '{commit_id, event, comments}' .orc/tmp/{number}-context.json \
     | gh api -X POST repos/$owner/$repo/pulls/{pr}/reviews --input -
 fi
 jq -c --arg sha "$(git rev-parse HEAD)" \
@@ -370,7 +373,10 @@ jq -c --arg sha "$(git rev-parse HEAD)" \
 rm .orc/tmp/{number}-comments.json .orc/tmp/{number}-pr-body.md .orc/tmp/{number}-context.json
 ```
 
-If the review post is rejected (a line outside the diff), drop the offending
+If GitHub rejects a review without a body, post each line comment on its own
+through the `pulls/{pr}/comments` endpoint instead (with `commit_id`), the same
+way as the file-level ones. If the review post is rejected for a line outside
+the diff, drop the offending
 comment, fold its text into the file-level comment for that path, and post
 again — never skip the context entirely over one bad anchor.
 

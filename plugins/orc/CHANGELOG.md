@@ -18,7 +18,9 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 - The AI review comment is organized by what needs you instead of by agent:
   a one-line verdict headline, a "Needs you" list, auto-fixes collapsed,
   duplicates merged, NOTEs dropped. Line-specific warnings move inline as
-  "Look closely" comments. The `sha:`/`verdict:` marker is unchanged
+  "Look closely" comments. The `sha:`/`verdict:` marker is unchanged; a hidden
+  `orc:warnings` block keeps every warning so `resume` can post them inline
+  later
 - `build` no longer writes implementation notes into the PR body at step 9;
   step 12 writes the body once. Merge readiness is now step 13, report step 14
 - `respond` skips comments starting with `<!-- orc:` (review context and the

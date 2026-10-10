@@ -20,9 +20,13 @@ Organize by what the reader needs to do, not by which agent found it:
 - One line per item: where, what, why it matters. No prose.
 - "Clean" lists the areas (correctness, security, quality, impact, deploy)
   with no remaining findings.
+- The hidden `orc:warnings` block lists every remaining WARNING, one per
+  line, line-specific ones included — `resume` reads it to post inline
+  context when it trusts this review instead of re-running it. Leave it empty
+  when there are none; never omit it.
 - Omit any headline part that's zero, the "Needs you" section when empty, and
-  the details block when nothing was auto-fixed. A clean review is the marker
-  plus the headline.
+  the details block when nothing was auto-fixed. A clean review is the marker,
+  the headline, and an empty warnings block.
 -->
 <!-- orc:ai-review sha:{full-commit-sha} verdict:{PASS|WARNING|BLOCK} -->
 ## AI Review: {✅ nothing needs you | ⚠️ {n} need you | 🚫 blocked} · {i} inline · {a} auto-fixed · clean: {areas}
@@ -35,3 +39,7 @@ Organize by what the reader needs to do, not by which agent found it:
 - `{file}:{line}` — {what was fixed}
 
 </details>
+
+<!-- orc:warnings
+{file}:{line} — {finding}
+-->

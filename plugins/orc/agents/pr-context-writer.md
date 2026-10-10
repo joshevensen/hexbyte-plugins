@@ -40,6 +40,7 @@ review. Omit any section with nothing worth saying — a small PR's body may be
 just the closing line.
 
 ```markdown
+<!-- orc:context sha:{head sha} -->
 **Review order:** {files or areas in the order to read them, and why that order — only if the PR spans more than a couple of areas}
 
 **Approach:** {the choice made where alternatives were real, and why the rejected ones lost — one line each, from the decision log}
@@ -55,7 +56,9 @@ Closes #{number}.
 -->
 ```
 
-The trailing `orc:decisions` block is load-bearing: `/orc:resume` reads the
+The leading `orc:context` marker is load-bearing: it's how `/orc:resume`
+tells that context was posted, and for which commit. Always include it.
+The trailing `orc:decisions` block is load-bearing too: `/orc:resume` reads the
 decision log back from it. Always include it, verbatim, even when every
 visible section is omitted. If the log contains `-->`, replace it with `--&gt;`.
 
@@ -67,7 +70,6 @@ Write to the review path as JSON:
 {
   "commit_id": "{head sha}",
   "event": "COMMENT",
-  "body": "<!-- orc:context -->\nReview context from the build — notes on non-obvious choices are inline.",
   "comments": [
     {"path": "src/a.ts", "line": 42, "side": "RIGHT", "body": "<!-- orc:context -->\n..."},
     {"path": "src/b.ts", "start_line": 10, "line": 18, "side": "RIGHT", "body": "<!-- orc:context -->\n..."}

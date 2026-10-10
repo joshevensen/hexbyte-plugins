@@ -132,11 +132,20 @@ head_sha=$(git rev-parse HEAD)
 ### 5. PR context
 
 This mirrors `build`'s step 12 exactly — keep both in sync if either changes.
-Run it when step 4 re-reviewed, or when the PR has no `<!-- orc:context -->`
-review yet (the earlier run gated at review, before context was posted).
+Run it when step 4 re-reviewed, or when the PR body has no
+`<!-- orc:context sha:… -->` marker for the current HEAD (the earlier run
+stopped before context was posted, or a later push moved HEAD):
+
+```bash
+gh pr view {pr} --json body --jq .body | grep -q "<!-- orc:context sha:$(git rev-parse HEAD)" \
+  && echo current || echo missing
+```
+
 Otherwise the context on the PR already matches the reviewed code; skip to
 step 6. Pass the WARNING findings from step 4's re-review, or — if step 4
-trusted a fresh review — those listed in the existing AI-review comment.
+trusted a fresh review — read them from that AI-review comment's hidden
+`<!-- orc:warnings … -->` block, which holds every WARNING, including the
+line-specific ones the visible summary only counts.
 
 ### 6. Merge readiness
 
