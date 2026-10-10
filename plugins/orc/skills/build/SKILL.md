@@ -24,14 +24,17 @@ verification, and review exactly as normal, including local git — the branch
 is created and each wave is committed locally, so `git log` / `git diff
 origin/main...HEAD` show real, inspectable output. It stops being "real" at
 the network boundary: skip the `gh issue edit` label changes in steps 5 and
-12, skip every `git push` (steps 8, 10, 11 — step 5 itself never pushes, it
-only branches and opens the PR), and skip every `gh pr` call in steps 5, 9,
-and 10 (create, edit, ready, comment) — print what each would have sent
-instead. Step 12 (CI watch, mergeability, the label flip) needs a real,
-pushed PR to check against, so there's nothing genuine to run there. End with:
+13, skip every `git push` (steps 8, 10, 11 — step 5 itself never pushes, it
+only branches and opens the PR), and skip every `gh pr` and `gh api` call in
+steps 5, 9, 10, and 12 (create, edit, ready, comment, review) — print what
+each would have sent instead. Step 12 still runs `pr-context-writer`, so its
+body and comments can be inspected. Step 13 (CI watch, mergeability, the label
+flip) needs a real, pushed PR to check against, so there's nothing genuine to
+run there. End with:
 ```
 DRY RUN — {n} wave(s) committed locally on branch {branch}, not pushed. Would
-open a draft PR "{title}", mark it ready for review, and post an AI review.
+open a draft PR "{title}", mark it ready for review, and post an AI review
+and review context.
 Re-run without --dry-run to push and open it.
 ```
 Gates still trip on real problems (spec, confidence, ambiguity, focused
@@ -146,7 +149,7 @@ existing=$(gh pr list --head "issue/{number}-{slug}" --state open --json number,
 ```
 
 - **No open PR** — create one, in draft, with a placeholder body (the real
-  implementation notes go in at step 9):
+  body goes in at step 12):
   ```bash
   pr_url=$(gh pr create --draft --base main --title "{title}" --body "🚧 Build in progress. Closes #{number}.")
   pr=$(basename "$pr_url")
@@ -198,9 +201,23 @@ For each wave, dispatch its tasks:
 
 After each wave, integrate the results (resolve any worktree reconciliation),
 then run **focused verification and commit** (step 8) before starting the next
-wave. Keep a short running list of non-obvious choices and discovered
-constraints across all waves — this becomes the PR body's implementation notes
-at step 9.
+wave.
+
+**Keep a decision log** at `.orc/tmp/{number}-decisions.md` (`mkdir -p
+.orc/tmp` first) across all waves. It's the only record of *why* the code looks
+the way it does — step 12 builds the reviewer context from it, and is forbidden
+from inventing reasons the log doesn't hold. Record only what a reviewer couldn't see from the diff, one entry
+per decision, as soon as it's made (subagents report theirs back for you to
+record):
+
+```markdown
+- `{file}:{lines}` — {the choice} — over {rejected alternative(s)}, because {reason}
+- `{file}` — departs from spec: {how}, because {reason}
+- constraint: {something discovered in the codebase that shaped the work}
+```
+
+Skip anything obvious or forced by the spec. An empty log is fine for a
+mechanical change.
 
 ### 8. Focused verification + commit per wave
 
@@ -212,7 +229,7 @@ Prefer the command in `CLAUDE.md`'s **`## Focused Verification`** section (a
 PHPUnit `--filter`, `pytest -k`, a JS test-path arg, etc. — necessarily
 per-repo). If that section is absent, derive a narrow invocation from
 `## Verification` by scoping it to the touched paths. **Never run the whole
-suite** — that is CI's job (step 12).
+suite** — that is CI's job (step 13).
 
 If `CLAUDE.md` has a **`## CI-Only Verification`** section, never run anything
 it lists, in any form — those suites (typically slow, browser-driven e2e) are
@@ -234,13 +251,22 @@ git push
 
 ### 9. Ready for review
 
-All waves are implemented, verified, and pushed. Before review, replace the
-PR's step-5 placeholder with the real thing:
+All waves are implemented, verified, and pushed. Mark the PR ready and stash
+the decision log in its body, hidden, so `/orc:resume` can recover it if this
+run gates before step 12. The visible body stays a placeholder — step 12
+writes the real one once review is done, so nothing is written here only to
+be overwritten. Write `.orc/tmp/{number}-pr-body.md` as:
+
+```markdown
+Implementation done — review context posts after AI review. Closes #{number}.
+
+<!-- orc:decisions
+{the decision log, with any `-->` written as `--&gt;`}
+-->
+```
 
 ```bash
-gh pr edit {pr} --title "{title}" --body "{implementation notes}
-
-Closes #{number}."
+gh pr edit {pr} --title "{title}" --body-file .orc/tmp/{number}-pr-body.md
 gh pr ready {pr}
 ```
 
@@ -254,7 +280,7 @@ are left (resume can continue from there).
 Review the branch's full diff against `origin/main`. Refresh it first
 (`git fetch origin main`) — the waves and verification above take time, so
 `origin/main` may have moved since step 5. Run all five agents **in
-parallel**, passing each the spec, your implementation notes, and the full
+parallel**, passing each the spec, the decision log, and the full
 diff (`git diff origin/main...HEAD`) — never the build conversation, so each
 reviews with fresh eyes:
 
@@ -275,10 +301,12 @@ touches logic the spec depends on. Commit and push auto-fixes together
 (`fix: address review findings`) and re-run focused verification on what they
 touched.
 
-Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` with each section's status
-and findings, capture the current commit (`git rev-parse HEAD` — after any
-auto-fix commit above) for the template's `sha:` marker, and post it as a **PR
-comment** — never fold review content into the PR description:
+Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` — it's organized by what
+needs the reader, not by agent: duplicates merged, NOTEs dropped, line-specific
+WARNINGs left to step 12's inline comments and only counted here. Capture the
+current commit (`git rev-parse HEAD` — after any auto-fix commit above) for the
+template's `sha:` marker, and post it as a **PR comment** — never fold review
+content into the PR description:
 
 ```bash
 gh pr comment {pr} --body-file {filled-template}
@@ -288,7 +316,8 @@ The `sha:`/`verdict:` marker line is load-bearing: it's how `/orc:resume`
 tells a still-fresh review apart from a stale one. If a residual **BLOCKER**
 remains after safe auto-fixes, **gate: review blocker** with the finding —
 the posted comment's `verdict:BLOCK` is what a later `/orc:resume` will see.
-Warnings are noted in the comment and do not block.
+Warnings do not block. Keep the WARNING findings (with file and line where
+they have one) for step 12.
 
 ### 11. Docblocks + changelog
 
@@ -298,7 +327,54 @@ it specifies — its output leads with a `Placement:` line naming exactly where
 the blocks go (an existing `## [Unreleased]` section, a new version heading,
 etc.). Commit and push any changes.
 
-### 12. Merge readiness
+### 12. PR context
+
+Give the reviewer what they need to review in **Files changed**: why
+non-obvious choices were made, what deserves scrutiny, what can be skimmed.
+This runs after step 11 so its line anchors point at the code as it will be
+reviewed.
+
+Remove context left by an earlier run of this step, so a rerun replaces
+rather than duplicates it. Delete only marker comments nobody has replied to —
+a thread with a reply is a conversation, and stays:
+
+```bash
+owner=$(gh repo view --json owner --jq .owner.login)
+repo=$(gh repo view --json name --jq .name)
+gh api --paginate repos/$owner/$repo/pulls/{pr}/comments --jq '.[]' \
+  | jq -s . > .orc/tmp/{number}-comments.json
+jq -r '[.[] | select(.in_reply_to_id) | .in_reply_to_id] as $replied
+  | .[] | select(.body | startswith("<!-- orc:context -->"))
+  | select(.id as $id | $replied | index($id) | not) | .id' \
+  .orc/tmp/{number}-comments.json \
+  | xargs -r -I % gh api -X DELETE repos/$owner/$repo/pulls/comments/%
+```
+
+Invoke `pr-context-writer` with the issue number and body, the spec, the
+decision log, step 10's WARNING findings, `{pr}`, `git rev-parse HEAD`, and
+the output paths `.orc/tmp/{number}-pr-body.md` and
+`.orc/tmp/{number}-context.json`. Then post what it wrote — the body, the line
+comments as one review (skip the review when there are none), and each
+file-level comment (the review endpoint doesn't take file-level comments):
+
+```bash
+gh pr edit {pr} --body-file .orc/tmp/{number}-pr-body.md
+if jq -e '.comments | length > 0' .orc/tmp/{number}-context.json >/dev/null; then
+  jq '{commit_id, event, body, comments}' .orc/tmp/{number}-context.json \
+    | gh api -X POST repos/$owner/$repo/pulls/{pr}/reviews --input -
+fi
+jq -c --arg sha "$(git rev-parse HEAD)" \
+  '.file_comments[] | . + {commit_id: $sha, subject_type: "file"}' \
+  .orc/tmp/{number}-context.json \
+  | while read -r c; do echo "$c" | gh api -X POST repos/$owner/$repo/pulls/{pr}/comments --input -; done
+rm .orc/tmp/{number}-comments.json .orc/tmp/{number}-pr-body.md .orc/tmp/{number}-context.json
+```
+
+If the review post is rejected (a line outside the diff), drop the offending
+comment, fold its text into the file-level comment for that path, and post
+again — never skip the context entirely over one bad anchor.
+
+### 13. Merge readiness
 
 "Ready for review" isn't useful if it's red or unmergeable — check both before
 reporting done. Neither step merges. **This is where the full test suite
@@ -324,6 +400,9 @@ markers, invoke `conflict-classifier`. Auto-resolve files it marks simple,
 stage, `git rebase --continue`, then `git push --force-with-lease`. If any file
 is marked complex, **gate: gate/verify** with the conflicting sections.
 
+If either fix pushed a commit, re-run step 12 so the context matches the final
+code.
+
 **Once CI is green and the PR is mergeable**, the issue is genuinely built —
 only now flip the label:
 ```bash
@@ -335,7 +414,7 @@ already been replaced — the gate procedure's label swap would then have
 nothing to remove, leaving `status:built` and `status:blocked` on the issue at
 the same time.
 
-### 13. Report
+### 14. Report
 
 ```
 PR open for #{number} — {pr-url}

@@ -2,6 +2,29 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.11.0]
+
+### Added
+- `build` posts review context after AI review (new step 12, new
+  `pr-context-writer` agent): inline and file-level comments on why
+  non-obvious choices were made, what needs a close look, and what can be
+  skimmed, plus a PR description limited to what isn't in the issue (review
+  order, rejected approaches, departures from the spec). Reasons come only
+  from a decision log `build` now keeps while it works, stashed in the PR body
+  so `resume` can recover it. `resume` posts the same context when it
+  re-reviews or when none exists yet
+
+### Changed
+- The AI review comment is organized by what needs you instead of by agent:
+  a one-line verdict headline, a "Needs you" list, auto-fixes collapsed,
+  duplicates merged, NOTEs dropped. Line-specific warnings move inline as
+  "Look closely" comments. The `sha:`/`verdict:` marker is unchanged
+- `build` no longer writes implementation notes into the PR body at step 9;
+  step 12 writes the body once. Merge readiness is now step 13, report step 14
+- `respond` skips comments starting with `<!-- orc:` (review context and the
+  AI review summary), which it previously treated as your instructions. A
+  reply to one is still handled
+
 ## [0.10.1]
 
 ### Changed

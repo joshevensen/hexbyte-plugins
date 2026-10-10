@@ -50,7 +50,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:create` | Discuss an idea at the scope level and produce GitHub issue(s) — no spec |
 | `/orc:plan` | Research the codebase and write a build-ready spec onto an issue |
 | `/orc:do` | Run create → plan → build for one simple issue in a single pass — for work small enough that three separate commands are overhead |
-| `/orc:build` | Take a specced issue to an open PR: draft PR on branch, task list → parallel build with live per-wave commits → focused verify → mark ready for review → AI review → merge readiness. Never merges |
+| `/orc:build` | Take a specced issue to an open PR: draft PR on branch, task list → parallel build with live per-wave commits → focused verify → mark ready for review → AI review → review context → merge readiness. Never merges |
 | `/orc:resume` | Continue a blocked build whose PR already reached ready-for-review — re-checks review freshness, then CI/mergeability, no rebuild |
 | `/orc:respond` | Manually fetch every unresolved PR comment — yours and everyone else's — and resolve each one: your own are instructions, others are judged before acting (no subscription, no merge) |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
@@ -90,7 +90,19 @@ for review** only once implementation is fully done and verified — that
 transition is the load-bearing signal both for you (draft = still building,
 non-draft = implementation complete) and for `/orc:resume` (see Gates below).
 The AI review posts as a **PR comment**, never folded into the description —
-that's what lets `resume` tell a fresh review apart from a stale one.
+that's what lets `resume` tell a fresh review apart from a stale one. It's
+written to be scanned: a one-line verdict, then only what needs you.
+
+## Review context
+
+After review, `build` writes context for reviewing in **Files changed**:
+inline and file-level comments on why non-obvious choices were made, what
+deserves a close look (line-specific review warnings land here), and what can
+be skimmed. The PR description holds only what isn't in the issue: review
+order, rejected approaches, departures from the spec. Every reason comes from
+a decision log `build` keeps as it works, never inferred afterward. The
+comments are marked `<!-- orc:context -->`, so `/orc:respond` skips them
+unless you reply to one.
 
 ## Focused verification
 

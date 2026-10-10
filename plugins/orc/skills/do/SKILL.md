@@ -82,7 +82,7 @@ what any stage checks.
 If all three stages completed:
 ```
 #{number} — {title}
-{build's own step-13 report}
+{build's own step-14 report}
 ```
 
 If it stopped early — a split was needed in step 1, or step 2 turned out
