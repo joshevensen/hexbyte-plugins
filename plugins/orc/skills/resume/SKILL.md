@@ -20,9 +20,10 @@ Rebuilding from scratch there re-does real, correct work to fix nothing.
 read-only), and in step 4 actually runs the review agents if review turns out
 stale (that's read-only until the final post) — local auto-fix commits still
 happen so you can inspect them, but skip the `gh pr comment` post itself and
-print what it would have said. In step 5, still watch CI and check
-mergeability — those are read-only too. Skip only the mutations a real fix
-would need: if CI fails, show `ci-debugger`'s diagnosis but don't commit/push
+print what it would have said. In step 5, run `pr-context-writer` but skip
+the `gh pr edit` and `gh api` posts, printing them instead. In step 6, still
+watch CI and check mergeability — those are read-only too. Skip only the
+mutations a real fix would need: if CI fails, show `ci-debugger`'s diagnosis but don't commit/push
 its fix; if the PR is `CONFLICTING`, show `conflict-classifier`'s
 classification but don't rebase, resolve, or force-push; skip the final `gh
 issue edit` to `status:built`. End with:
@@ -82,6 +83,19 @@ git switch "issue/{number}-{slug}"
 git fetch origin main
 ```
 
+**Recover the decision log.** `build` stashes it in the PR body inside an
+`<!-- orc:decisions … -->` block (step 9, carried forward by step 12). Read it
+back — never reconstruct it from the diff, since `pr-context-writer` may only
+state reasons the log holds:
+
+```bash
+mkdir -p .orc/tmp
+gh pr view {pr} --json body --jq .body \
+  | sed -n '/<!-- orc:decisions/,/^-->/p' | sed '1d;$d' > .orc/tmp/{number}-decisions.md
+```
+
+If there's no block (a PR built before this existed), use an empty log.
+
 ### 4. Check review freshness, re-review if needed
 
 Look for the most recent AI-review comment and its `sha:`/`verdict:` marker
@@ -106,7 +120,8 @@ head_sha=$(git rev-parse HEAD)
   manual fix was pushed, or a prior resume attempt did). Re-review — this
   mirrors `build`'s steps 10-11 exactly, keep both in sync if either changes:
   run all five review agents plus `/code-review` in parallel against
-  `git diff origin/main...HEAD`, auto-fix safe findings and re-verify, fill
+  `git diff origin/main...HEAD` (passing the decision log from step 3 where
+  `build` passes it), auto-fix safe findings and re-verify, fill
   `ai-review.md` with the post-auto-fix `git rev-parse HEAD` as the new
   `sha:` marker, and post it via `gh pr comment` — never the PR description.
   Then run `changelog-writer`/docblocks the same way `build` step 11 does.
@@ -114,9 +129,27 @@ head_sha=$(git rev-parse HEAD)
   what exists, comment on the issue, `status:blocked`, stop). Otherwise
   continue to step 5.
 
-### 5. Merge readiness
+### 5. PR context
 
 This mirrors `build`'s step 12 exactly — keep both in sync if either changes.
+Run it when step 4 re-reviewed, or when the PR body has no
+`<!-- orc:context sha:… -->` marker for the current HEAD (the earlier run
+stopped before context was posted, or a later push moved HEAD):
+
+```bash
+gh pr view {pr} --json body --jq .body | grep -q "<!-- orc:context sha:$(git rev-parse HEAD)" \
+  && echo current || echo missing
+```
+
+Otherwise the context on the PR already matches the reviewed code; skip to
+step 6. Pass the WARNING findings from step 4's re-review, or — if step 4
+trusted a fresh review — read them from that AI-review comment's hidden
+`<!-- orc:warnings … -->` block, which holds every WARNING, including the
+line-specific ones the visible summary only counts.
+
+### 6. Merge readiness
+
+This mirrors `build`'s step 13 exactly — keep both in sync if either changes.
 
 **CI:**
 ```bash
@@ -140,13 +173,16 @@ markers, invoke `conflict-classifier`. Auto-resolve files it marks simple,
 stage, `git rebase --continue`, then `git push --force-with-lease`. If any
 file is marked complex, **gate: gate/verify** with the conflicting sections.
 
+If either fix pushed a commit, re-run step 5 so the context matches the final
+code.
+
 **Once CI is green and the PR is mergeable:**
 ```bash
 gh label create "status:built" -f >/dev/null 2>&1 || true
 gh issue edit {number} --remove-label "status:building,status:blocked" --add-label "status:built"
 ```
 
-### 6. Report
+### 7. Report
 
 ```
 PR resumed for #{number} — {pr-url}

@@ -2,6 +2,15 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.2.0]
+
+### Changed
+- `/util:push`'s AI review comment now uses the same scannable format as
+  `orc` 0.11.0: a one-line verdict headline, a "Needs you" list of deferred
+  findings, fixes collapsed, duplicates merged, NOTEs dropped. Unlike
+  `orc`'s, it has no inline comments, so line-specific findings stay in the
+  list. The `sha:`/`verdict:` marker is unchanged
+
 ## [0.1.0]
 
 ### Added

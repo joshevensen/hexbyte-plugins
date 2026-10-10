@@ -94,13 +94,22 @@ gh api graphql -f query='
 A thread's authorship is decided by its **first** comment — the one that
 opened it — regardless of who replied afterward.
 
+**orc's own notes are not requests.** A comment whose body starts with
+`<!-- orc:` (the `<!-- orc:context -->` notes `build` posts for reviewers, the
+`<!-- orc:ai-review` summary) is posted under your account but isn't written
+by you:
+- A thread made up only of orc notes: skip it — no reply, no resolve.
+- A thread where someone replied to an orc note: the first non-orc comment
+  opens it and decides authorship; the orc note is just context for it.
+
 **Unanswered general PR comments** (top-level conversation, not tied to a review):
 
 ```bash
 gh pr view {pr} --json comments --jq '.comments'
 ```
 
-Walk the full list in order. A comment counts as unanswered if **no later
+Skip any comment whose body starts with `<!-- orc:` (see above). Walk the
+rest in order. A comment counts as unanswered if **no later
 comment in the list** — from anyone — already addresses it; treat an obvious
 follow-up ("nvm, ignore that") as closing out the comment it follows,
 regardless of who wrote either one.

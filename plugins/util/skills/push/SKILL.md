@@ -99,8 +99,9 @@ Once every finding is resolved or deferred, push whatever review committed:
 git push
 ```
 
-Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` with each section's status
-and findings, capture the current commit (`git rev-parse HEAD` — after any
+Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` — it's organized by what
+needs the reader, not by agent: deferred findings listed, fixes collapsed,
+duplicates merged, NOTEs dropped. Capture the current commit (`git rev-parse HEAD` — after any
 fix commits above) for the template's `sha:` marker, and post it as a **PR
 comment** — never fold review content into the PR description:
 ```bash
