@@ -1,12 +1,13 @@
 # hexbyte
 
-A Claude Code plugin marketplace. Two plugins for issue-to-PR automation and long-form writing.
+A Claude Code plugin marketplace. Three plugins for issue-to-PR automation, orc-pipeline utilities, and long-form writing.
 
 ## Plugins
 
 | Plugin | What it does |
 |---|---|
-| [**orc**](plugins/orc/README.md) | Issue-to-PR automation for a GitHub-issue-driven workflow: interactive spec authoring plus autonomous build, review, and merge skills. |
+| [**orc**](plugins/orc/README.md) | Issue-to-PR automation for a GitHub-issue-driven workflow: interactive spec authoring plus autonomous build and review skills that open PRs. You do the final merge. |
+| [**util**](plugins/util/README.md) | Utility skills for the orc pipeline: quick commit/review/PR, Dependabot triage, issue-status listing, and repo scaffolding. |
 | [**ink**](plugins/ink/README.md) | Editorial workflow for long-form blog posts: brainstorm, develop, write, review, and publish. |
 
 ## Install
@@ -18,6 +19,7 @@ Add the marketplace once, then install the plugins you want:
 ```
 /plugin marketplace add joshevensen/hexbyte-plugins
 /plugin install orc@hexbyte
+/plugin install util@hexbyte
 /plugin install ink@hexbyte
 ```
 
@@ -28,12 +30,13 @@ The interactive `/plugin` command isn't available in web sessions — plugins mu
 ```bash
 claude plugin marketplace add joshevensen/hexbyte-plugins
 claude plugin install orc@hexbyte
+claude plugin install util@hexbyte
 claude plugin install ink@hexbyte
 ```
 
 Save changes; the script runs on each new session. Requires the environment's network access to reach `github.com` (the default **Trusted** policy does).
 
-See each plugin's README for its skills and usage: [orc](plugins/orc/README.md) · [ink](plugins/ink/README.md).
+See each plugin's README for its skills and usage: [orc](plugins/orc/README.md) · [util](plugins/util/README.md) · [ink](plugins/ink/README.md).
 
 ## Versioning
 
