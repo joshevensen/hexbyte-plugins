@@ -2,6 +2,16 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.12.0]
+
+### Added
+- `walkthru` skill: Claude walks you through the work it just did, as a junior
+  developer explaining it to their lead — what it was asked, the approach,
+  decisions and why, tricky code, what it didn't do, how it tested. One
+  checklist item per turn; you approve, ask, or request a change. Gathers from
+  the conversation, the session log (`extract-session.sh`, needs `jq`), git,
+  and the issue spec. Posts and writes nothing
+
 ## [0.11.0]
 
 ### Added
