@@ -9,7 +9,7 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
   developer explaining it to their lead — what it was asked, the approach,
   decisions and why, tricky code, what it didn't do, how it tested. One
   checklist item per turn; you approve, ask, or request a change. Gathers from
-  the conversation, the session log (`extract-session.sh`, needs `jq`), git,
+  the conversation, the session log (`extract-session.sh`, uses `jq` if installed), git,
   and the issue spec. Posts and writes nothing
 
 ## [0.11.0]

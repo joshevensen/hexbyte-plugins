@@ -41,7 +41,7 @@ Collect what exists, best source first. Missing sources are normal — use what 
    ```
    It prints a condensed transcript (prompts, replies, tool calls, tool errors) and the files edited.
    If it prints `NOTE: session id not available`, it guessed the newest log for this directory — check
-   the first prompts match this conversation before trusting it. `NO_SESSION_LOG` → skip.
+   the first prompts match this conversation before trusting it. `NO_SESSION_LOG` or `NO_JQ` (jq isn't installed) → skip.
    Long session with several unrelated tasks → use only the part about the work being explained.
 3. **git** (if a repo). Base = `git symbolic-ref refs/remotes/origin/HEAD` (fallback `main`/`master`).
    - Changes: `git diff $(git merge-base HEAD <base>)` plus uncommitted (`git status`, `git diff`).

@@ -9,6 +9,11 @@
 #   concurrent session — the caller should say so).
 set -euo pipefail
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "NO_JQ"
+  exit 0
+fi
+
 id="${1:-}"
 projects="$HOME/.claude/projects"
 file=""
