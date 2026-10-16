@@ -45,8 +45,10 @@ gh issue edit {number} --remove-label "status:ready" --add-label "status:draft" 
 
 ### 2. Research the codebase
 
-Explore what already exists before choosing an approach. Read `CLAUDE.md` for
-conventions and the project's `## Verification` / `## Focused Verification`
+Explore what already exists before choosing an approach. Read
+`.orc/decisions/resolved.md` too, if the repo has one — its rules answer
+questions you would otherwise ask (see `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`).
+Read `CLAUDE.md` for conventions and the project's `## Verification` / `## Focused Verification`
 commands. Focus on whatever the work touches:
 
 - models, migrations, and schema in scope
@@ -58,12 +60,15 @@ You are choosing the technical approach: what to build on, which conventions to
 follow, and every non-obvious constraint the implementer needs.
 
 If research turns up a real fork — two reasonable approaches the issue doesn't
-settle — ask before writing the spec, not after. Batch the forks into one
+settle, and no rule in `resolved.md` answers — ask before writing the spec,
+not after. Batch the forks into one
 round (up to four per `AskUserQuestion` call). Each question carries your
 recommended approach as the first option, the realistic alternative(s), and
 what each costs. Anything you can decide from the code and `CLAUDE.md`, decide
 without asking. The chosen approach and the rejected ones go into the spec's
-Design Rationale.
+Design Rationale. Write each choice that could come up in another issue as a
+line `- decision: {situation} — {choice} — {why}`, and each rule you applied as
+`- applied: {situation} — {choice}`; `build` records the first kind.
 
 ### 3. Write the spec
 

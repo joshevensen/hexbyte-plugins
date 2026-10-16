@@ -44,6 +44,7 @@ Collect what exists, best source first. Missing sources are normal — use what 
      the spec, constraints. If the file is gone (new container), read the same log from the PR body's
      hidden `<!-- orc:decisions … -->` block (`gh pr view {pr} --json body`). Treat the log as the source of
      truth for *why*; never invent reasons it doesn't hold.
+   - `.orc/decisions/resolved.md` — the rules in force, for the Rules item.
    - The AI review comment (`gh pr view {pr} --json comments`): the `verdict:` marker, what is still open,
      the hidden `orc:warnings` block, and any deploy-risk findings.
 3. **The spec.** `gh issue view {issue} --comments` — the Spec comment. Acceptance Criteria (each with
@@ -73,6 +74,7 @@ considered." Decisions become "inferred from the code" or are dropped. No PR →
 | 📋 **Asked and summary** | always | What was asked, in your own words + source (issue). A one-line size: files, risky files, migrations. A one-line state: CI, review verdict, deviations from the spec. End "Did I get that right?" |
 | 🧭 **Approach** | always | 3–5 bullets: the shape of the solution and the areas touched. No file tour. |
 | ⚖️ **Decision: <the choice>** | per real fork, max 4 | Options → chosen → why → what it costs. A departure from the spec is a decision. |
+| 📌 **Rules** | only if any | Rules applied from `.orc/decisions/resolved.md` (from the decision log's `applied:` entries) and rules promoted or decisions recorded by this PR (from `rule promoted:` entries and the diff of `.orc/decisions/`). One line each. Ask whether each applied rule was the right call. |
 | ✅ **Criteria and testing** | always | Each acceptance criterion → met or not → the test or line that proves it. Then what ran, and what is *not* covered. |
 | 📁 **Files and tricky code** | always | Files in review order. Risky first, with a snippet and what would break it. Safe files grouped into one line. Flag scope drift (changed but no criterion explains it) and deploy risks (migrations, env vars, contract changes). |
 | ⚠️ **Open items** | only if non-empty | Anything still unresolved: a BLOCK verdict, red CI, a question you couldn't resolve. Each with your recommendation. |
@@ -170,7 +172,9 @@ Changes you asked for:
 Then ask for the verdict with `AskUserQuestion`:
 
 - **Change requests recorded** → no merge option. Offer **Make these changes now** / **Stop here**. On yes,
-  make them, then offer a short walkthrough of just the new changes.
+  make them, then offer a short walkthrough of just the new changes. A change that overrides an applied rule
+  or a recorded decision also updates `.orc/decisions/` — settle it as
+  `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md` describes.
 - **No change requests**, and CI is green, the review verdict is not BLOCK, and no open items remain →
   **Squash-merge it** / **Not yet**. Only on **Squash-merge it**, run `gh pr merge {pr} --squash` and report
   the result in one line. Never merge on anything weaker than that explicit choice.

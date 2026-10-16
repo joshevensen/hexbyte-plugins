@@ -76,13 +76,34 @@ one inferred and confirmed with the user before applying.
 ### 3. `.orc/` directory
 
 ```bash
-mkdir -p .orc/tmp
+mkdir -p .orc/tmp .orc/decisions
 ```
 
 `.orc/tmp/` holds scratch specs `plan` writes before posting them to an issue.
 **Gitignored.** Write `.orc/.gitignore`:
 ```
 tmp/
+```
+
+`.orc/decisions/` is **committed** — it's the repo's memory of how decisions
+were made (`orc`'s `templates/decisions.md`). Create each file only if it's
+missing; never overwrite one that has entries:
+
+`.orc/decisions/made.md`
+```markdown
+# Decisions made
+
+Decisions confirmed so far, one section per situation. `orc` appends here and
+promotes a choice to `resolved.md` once three different issues chose it the
+same way. Nothing reads this file to decide anything.
+```
+
+`.orc/decisions/resolved.md`
+```markdown
+# Decisions resolved
+
+Rules `orc` applies instead of asking. `plan` and `build` read this whole file
+at the start of every run. Edit or delete a rule here to change what orc does.
 ```
 
 **Migration:** if the root `.gitignore` or `.orc/.gitignore` still lists old

@@ -2,6 +2,13 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.3.0]
+
+### Added
+- `/util:setup` creates `.orc/decisions/made.md` and `.orc/decisions/resolved.md`
+  (only if missing), the committed decisions memory `orc` 0.12.0 reads and
+  writes. `.orc/tmp/` stays gitignored
+
 ## [0.2.0]
 
 ### Changed

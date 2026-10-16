@@ -89,6 +89,11 @@ so does any run nobody can answer (no interactive user, or `AskUserQuestion`
 unavailable): there, the gates work exactly as written below. A question left
 unanswered becomes the gate.
 
+**Rules first.** Read `.orc/decisions/resolved.md` (if the repo has one) in step
+1. Before asking a question or choosing between alternatives, check it — on a
+clear match, apply the rule and log `- applied: …` instead of asking. See
+`${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`.
+
 How to ask (the persona in `working-style.md`):
 
 - **Only what changes the build.** Read the code, spec, and docs first. If the
@@ -367,13 +372,22 @@ the posted comment's `verdict:BLOCK` is what a later `/orc:resume` will see.
 Warnings do not block. Keep the WARNING findings (with file and line where
 they have one) for step 12.
 
-### 11. Docblocks + changelog
+### 11. Docblocks, changelog + decisions
 
 Update file-level docblocks for changed files. If the repo keeps a
 `CHANGELOG.md`, invoke `changelog-writer` and insert its entry at the placement
 it specifies — its output leads with a `Placement:` line naming exactly where
 the blocks go (an existing `## [Unreleased]` section, a new version heading,
 etc.). Commit and push any changes.
+
+**Record decisions.** Take the decisions that could come up again in another
+issue: the decision-log entries with a rejected alternative, answers you got in
+this run, accepted review findings, and the spec's `- decision:` lines. Record
+each one in `.orc/decisions/` as `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`
+describes — match, add, promote on the third matching choice, or ask you to
+settle a conflict. Commit and push it as `chore(#{number}): record decisions`.
+It rides the PR, so merging it is what confirms the decisions. Note each
+promotion as `- rule promoted: {situation} → {choice}` in the decision log.
 
 ### 12. PR context
 

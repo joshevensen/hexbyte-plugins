@@ -82,6 +82,18 @@ Everything is a GitHub issue — no task/feature split, no size threshold.
   its complexity — while genuinely dependent tasks run in sequence. Any size of
   issue becomes one PR.
 
+## Decisions memory
+
+Where several answers are correct, orc learns which one you pick. Choices you
+confirm are recorded in `.orc/decisions/made.md` (committed with the PR, so
+merging confirms them). Once three different issues chose the same way, the
+choice moves to `.orc/decisions/resolved.md` as a rule — no question asked.
+`plan` and `build` read `resolved.md` first and apply a clear match instead of
+asking; `walkthru` shows which rules were applied. If you choose differently
+from an earlier answer, orc asks you to settle it: pick one, or say what it
+depends on. Edit `resolved.md` any time to change a rule. `/util:setup` creates
+the files; format in [`templates/decisions.md`](templates/decisions.md).
+
 ## Watching a build live
 
 `build` opens a **draft PR right after branching** (before any code exists)

@@ -15,6 +15,15 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
   open questions in the same form: batched, recommendation first
 
 ### Added
+- Decisions memory (`templates/decisions.md`): orc records choices you confirm
+  in `.orc/decisions/made.md` and, once three different issues chose the same
+  way, promotes them to `.orc/decisions/resolved.md` without asking. If you
+  chose differently, it asks you to settle it — one answer wins, or "it
+  depends on…" splits the situation. `plan` and `build` read `resolved.md`
+  first and apply a clear match instead of asking, logging `applied:`.
+  `build` records decisions in the PR (step 11) so merging confirms them;
+  `walkthru` shows rules applied, promoted, and overridden. Needs
+  `/util:setup` 0.3.0 for the files, but works without them
 - Every pipeline skill ends by offering the next step —
   `create` → `plan` → `build` → `walkthru` — as its last line
   (`➡️ Next: /orc:plan #12 — continue?`). Yes runs it in the same session;
