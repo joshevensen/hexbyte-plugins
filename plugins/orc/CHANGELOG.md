@@ -22,7 +22,8 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
   depends on…" splits the situation. `plan` and `build` read `resolved.md`
   first and apply a clear match instead of asking, logging `applied:`.
   `build` records decisions in the PR (step 11) so merging confirms them;
-  `walkthru` shows rules applied, promoted, and overridden. Needs
+  `walkthru` shows rules applied, promoted, and overridden. `resume` does the
+  same when it re-reviews, including resolving open findings with you. Needs
   `/util:setup` 0.3.0 for the files, but works without them
 - Every pipeline skill ends by offering the next step —
   `create` → `plan` → `build` → `walkthru` — as its last line
