@@ -4,6 +4,8 @@ description: Take a draft issue from /orc:create, explore the codebase, choose a
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `plan` turns a scoped issue into a buildable one. It reads the issue `create`
 produced, researches the codebase, decides how to implement it, and writes the
 spec as a comment on the issue. It owns all spec-writing — the logic that used
@@ -43,8 +45,10 @@ gh issue edit {number} --remove-label "status:ready" --add-label "status:draft" 
 
 ### 2. Research the codebase
 
-Explore what already exists before choosing an approach. Read `CLAUDE.md` for
-conventions and the project's `## Verification` / `## Focused Verification`
+Explore what already exists before choosing an approach. Read
+`.orc/decisions/resolved.md` too, if the repo has one — its rules answer
+questions you would otherwise ask (see `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`).
+Read `CLAUDE.md` for conventions and the project's `## Verification` / `## Focused Verification`
 commands. Focus on whatever the work touches:
 
 - models, migrations, and schema in scope
@@ -55,10 +59,22 @@ commands. Focus on whatever the work touches:
 You are choosing the technical approach: what to build on, which conventions to
 follow, and every non-obvious constraint the implementer needs.
 
+If research turns up a real fork — two reasonable approaches the issue doesn't
+settle, and no rule in `resolved.md` answers — ask before writing the spec,
+not after. Batch the forks into one
+round (up to four per `AskUserQuestion` call). Each question carries your
+recommended approach as the first option, the realistic alternative(s), and
+what each costs. Anything you can decide from the code and `CLAUDE.md`, decide
+without asking. The chosen approach and the rejected ones go into the spec's
+Design Rationale. Write each choice that could come up in another issue as a
+line `- decision: {situation} — {choice} — {why}`, and each rule you applied as
+`- applied: {situation} — {choice}`; `build` records the first kind.
+
 ### 3. Write the spec
 
 Invoke `spec-writer`, passing the issue body (scope and intent from `create`),
-whether it's a bug (`type:bug` present), and an output path of
+whether it's a bug (`type:bug` present), the approach decisions settled in
+step 2, and an output path of
 `.orc/tmp/{number}-spec.md`. It fills `${CLAUDE_PLUGIN_ROOT}/templates/spec.md`.
 
 **Every path the spec cites must actually exist** — a phantom path trips
@@ -68,7 +84,8 @@ whether it's a bug (`type:bug` present), and an output path of
 
 Read the drafted spec and surface its **Open Questions** and any acceptance
 criterion that isn't cleanly machine-verifiable. Work through them with the
-user, folding answers back into the spec, until **Open Questions reads `None.`**
+user — batched, each with your recommended answer first and the alternative's
+cost, per `working-style.md` — folding answers back into the spec, until **Open Questions reads `None.`**
 and every acceptance criterion is tied to a test, command, or observable
 outcome. This is the gate — the same one `build` re-checks. Do not weaken it.
 
@@ -90,5 +107,8 @@ rm .orc/tmp/{number}-spec.md
 
 ```
 #{number} specced — {ready to build | still draft: {what's open}}.
-Next: /orc:build {number}.
 ```
+
+If it's ready, end with the next-step line from `working-style.md`:
+`➡️ Next: /orc:build #{number} — continue?`. If it's still draft, say what's
+open and offer nothing.

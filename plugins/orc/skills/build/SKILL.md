@@ -4,6 +4,8 @@ description: Take a specced issue from spec to open PR — decompose into a depe
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `build` takes one specced issue and drives it to an open, AI-reviewed PR for you
 to merge. An issue of any size is built in one `build` run producing one PR —
 there is no size gate. A draft PR opens right after branching (step 5) so you
@@ -78,6 +80,33 @@ Referenced throughout as "**gate: {name}**". When a gate trips:
 If the user is actively in the loop, a gate may instead surface the problem and
 offer to resolve it inline rather than pausing-and-exiting.
 
+## Asking instead of gating
+
+When you can ask — an interactive session with `AskUserQuestion` — the
+judgment gates (**confidence**, **ambiguity**, and unresolved review findings)
+become questions instead of a pause-and-exit. Everything else still gates, and
+so does any run nobody can answer (no interactive user, or `AskUserQuestion`
+unavailable): there, the gates work exactly as written below. A question left
+unanswered becomes the gate.
+
+**Rules first.** Read `.orc/decisions/resolved.md` (if the repo has one) in step
+1. Before asking a question or choosing between alternatives, check it — on a
+clear match, apply the rule and log `- applied: …` instead of asking. See
+`${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`.
+
+How to ask (the persona in `working-style.md`):
+
+- **Only what changes the build.** Read the code, spec, and docs first. If the
+  answer wouldn't change what gets built, decide, and log
+  `- assumption: {what} — because {reason}` in the decision log.
+- **Batch.** Collect every open question from a step (or a wave) and ask them
+  in one round, up to four per `AskUserQuestion` call.
+- **Propose.** Each question: what's unclear, your recommended answer as the
+  first option (marked Recommended), the realistic alternatives, and what each
+  costs.
+- **Record the answer** in the decision log, so it reaches the PR and
+  `/orc:walkthru`.
+
 ## Steps
 
 ### 0. Resolve target
@@ -116,7 +145,9 @@ the questions still open. Point the user to `/orc:plan {number}` to (re-)spec.
 Read the spec's touchpoints and locate the real files in the codebase. If there
 is material ambiguity — a named file/symbol doesn't exist, two readings of a
 criterion would produce different code, an unstated dependency blocks the work —
-**gate: confidence**, listing the exact unknowns to resolve. Confidence is
+**gate: confidence**, listing the exact unknowns to resolve — or, when you can
+ask, ask each unknown as a question with a recommended answer (see *Asking
+instead of gating*) and continue once they're answered. Confidence is
 judged on concrete facts, not a numeric score, and it is **not** a size check:
 a large but well-specified issue passes. Only genuine ambiguity gates here.
 
@@ -197,7 +228,9 @@ For each wave, dispatch its tasks:
   subagent at dispatch.
 - **No guessing.** If a task is ambiguous, incomplete, or conflicts with the
   codebase, stop that work and **gate: ambiguity** with the exact question and
-  the options you see.
+  the options you see. When you can ask, a stopped task reports its question
+  instead; once the rest of the wave finishes, ask the wave's questions
+  together, then re-dispatch the stopped task with the answers.
 
 After each wave, integrate the results (resolve any worktree reconciliation),
 then run **focused verification and commit** (step 8) before starting the next
@@ -301,10 +334,29 @@ touches logic the spec depends on. Commit and push auto-fixes together
 (`fix: address review findings`) and re-run focused verification on what they
 touched.
 
-Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` — it's organized by what
-needs the reader, not by agent: duplicates merged, NOTEs dropped, line-specific
+**Resolve the rest with the user.** When you can ask, don't hand over a PR with
+findings still open. Ask one question per remaining BLOCKER or WARNING that
+wasn't auto-fixed, batched: the finding, your recommended fix as the first
+option, **Accept as is** (with the risk), and any other realistic fix. Then:
+
+- **Fix** — apply it, commit and push (`fix(#{number}): {finding}`), re-run
+  focused verification on what it touched, and re-run the agent(s) that raised
+  it on the updated diff. A finding that comes back is asked once more; after
+  that, **gate: review blocker**. Log `- review: {finding} — fixed: {what
+  changed}`.
+- **Accept** — log `- accepted: {file}:{line} — {finding} — because {their
+  reason}`. An accepted BLOCKER counts as a WARNING in the review comment below,
+  marked "accepted by you"; only they can downgrade it.
+
+NOTEs stay dropped. Accepted WARNINGs still flow to step 12 as inline context,
+as before. These log entries ride the decision log into the PR body in step 12,
+so the resolution is on the PR as well as in `/orc:walkthru`.
+
+Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md` from the state after this
+resolution — it's organized by
+what needs the reader, not by agent: duplicates merged, NOTEs dropped, line-specific
 WARNINGs left to step 12's inline comments and only counted here. Capture the
-current commit (`git rev-parse HEAD` — after any auto-fix commit above) for the
+current commit (`git rev-parse HEAD` — after any auto-fix or resolution commit above) for the
 template's `sha:` marker, and post it as a **PR comment** — never fold review
 content into the PR description:
 
@@ -314,18 +366,28 @@ gh pr comment {pr} --body-file {filled-template}
 
 The `sha:`/`verdict:` marker line is load-bearing: it's how `/orc:resume`
 tells a still-fresh review apart from a stale one. If a residual **BLOCKER**
-remains after safe auto-fixes, **gate: review blocker** with the finding —
+remains after safe auto-fixes and the resolution above (or you can't ask),
+**gate: review blocker** with the finding —
 the posted comment's `verdict:BLOCK` is what a later `/orc:resume` will see.
 Warnings do not block. Keep the WARNING findings (with file and line where
 they have one) for step 12.
 
-### 11. Docblocks + changelog
+### 11. Docblocks, changelog + decisions
 
 Update file-level docblocks for changed files. If the repo keeps a
 `CHANGELOG.md`, invoke `changelog-writer` and insert its entry at the placement
 it specifies — its output leads with a `Placement:` line naming exactly where
 the blocks go (an existing `## [Unreleased]` section, a new version heading,
 etc.). Commit and push any changes.
+
+**Record decisions.** Take the decisions that could come up again in another
+issue: the decision-log entries with a rejected alternative, answers you got in
+this run, accepted review findings, and the spec's `- decision:` lines. Record
+each one in `.orc/decisions/` as `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`
+describes — match, add, promote on the third matching choice, or ask you to
+settle a conflict. Commit and push it as `chore(#{number}): record decisions`.
+It rides the PR, so merging it is what confirms the decisions. Note each
+promotion as `- rule promoted: {situation} → {choice}` in the decision log.
 
 ### 12. PR context
 
@@ -424,5 +486,9 @@ the same time.
 
 ```
 PR open for #{number} — {pr-url}
-CI green, mergeable, {n} warning(s) noted. Ready for your merge.
+CI green, mergeable. Review: {f} fixed with you, {a} accepted. Ready for your review.
 ```
+
+End with the next-step line from `working-style.md`:
+`➡️ Next: /orc:walkthru #{pr} — continue?` Not on a dry run, and not after a
+gate.

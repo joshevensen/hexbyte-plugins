@@ -55,6 +55,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:respond` | Manually fetch every unresolved PR comment — yours and everyone else's — and resolve each one: your own are instructions, others are judged before acting (no subscription, no merge) |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
 | `/orc:explain` | Explain what a file, route, or PR is doing in plain language, at junior/intermediate/senior depth — read-only chat reply, nothing posted |
+| `/orc:walkthru` | Your PR review as a conversation: what was built, the choices and why, criteria vs. proof, and the code to look at closely — one item at a time. Ends with a verdict and, if everything is clean, an optional squash-merge |
 
 `/orc:push`, `/orc:bump`, `/orc:list`, and `/orc:setup` moved to the
 [`util`](../util) plugin — install `util@hexbyte` alongside `orc` to keep
@@ -80,6 +81,18 @@ Everything is a GitHub issue — no task/feature split, no size threshold.
   tasks run in parallel via subagents — each dispatched with the model that fits
   its complexity — while genuinely dependent tasks run in sequence. Any size of
   issue becomes one PR.
+
+## Decisions memory
+
+Where several answers are correct, orc learns which one you pick. Choices you
+confirm are recorded in `.orc/decisions/made.md` (committed with the PR, so
+merging confirms them). Once three different issues chose the same way, the
+choice moves to `.orc/decisions/resolved.md` as a rule — no question asked.
+`plan` and `build` read `resolved.md` first and apply a clear match instead of
+asking; `walkthru` shows which rules were applied. If you choose differently
+from an earlier answer, orc asks you to settle it: pick one, or say what it
+depends on. Edit `resolved.md` any time to change a rule. `/util:setup` creates
+the files; format in [`templates/decisions.md`](templates/decisions.md).
 
 ## Watching a build live
 

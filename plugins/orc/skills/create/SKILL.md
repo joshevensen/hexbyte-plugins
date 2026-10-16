@@ -4,6 +4,8 @@ description: Discuss an idea at the product/scope level and produce one or more 
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `create` is the human-judgment front of the pipeline. You talk an idea through
 at the product and scope level, then produce the GitHub issue(s) that `/orc:plan`
 will later spec. It does **not** write specs and it does **not** explore the
@@ -92,8 +94,13 @@ Created {n} issue(s):
   #{number} — {title}
   ...
 
-Next: /orc:plan {number} to research the codebase and write the spec.
 ```
+
+If several issues were filed, offer the first and name the rest as
+`#{n} in its own session`. End with the next-step line from
+`working-style.md`:
+
+`➡️ Next: /orc:plan #{number} — continue?`
 
 If several issues were split from one discussion, note the relationship between
 them (e.g. "#12 must land before #13") so `plan`/`build` order is clear.

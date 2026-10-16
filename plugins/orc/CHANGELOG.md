@@ -2,6 +2,52 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.12.0]
+
+### Changed
+- `build` asks instead of pausing when you're at the keyboard. Confidence and
+  ambiguity gates become batched questions, each with a recommended answer
+  first; unanswered, or in an unattended run, they gate as before. Before it
+  hands over the PR it works through every review finding it couldn't
+  auto-fix — fix or accept, one question each — and logs the outcome in the
+  decision log, which reaches the PR body and `walkthru`
+- `plan` asks about real approach forks before writing the spec, and asks
+  open questions in the same form: batched, recommendation first
+
+### Added
+- Decisions memory (`templates/decisions.md`): orc records choices you confirm
+  in `.orc/decisions/made.md` and, once three different issues chose the same
+  way, promotes them to `.orc/decisions/resolved.md` without asking. If you
+  chose differently, it asks you to settle it — one answer wins, or "it
+  depends on…" splits the situation. `plan` and `build` read `resolved.md`
+  first and apply a clear match instead of asking, logging `applied:`.
+  `build` records decisions in the PR (step 11) so merging confirms them;
+  `walkthru` shows rules applied, promoted, and overridden. `resume` does the
+  same when it re-reviews, including resolving open findings with you. Needs
+  `/util:setup` 0.3.0 for the files, but works without them
+- Every pipeline skill ends by offering the next step —
+  `create` → `plan` → `build` → `walkthru` — as its last line
+  (`➡️ Next: /orc:plan #12 — continue?`). Yes runs it in the same session;
+  anything else stops. Nothing is offered while work is blocked, open or
+  draft, after a gate, or on a dry run. `respond` offers `resume`; `walkthru`
+  offers nothing, since merging is its verdict
+- `templates/working-style.md`: one place for how orc behaves and talks. Orc
+  acts as a junior developer reporting to you as the senior — researches
+  before asking, asks only what changes the build, and brings every question
+  with a recommendation. Chat output is short lists with a small set of
+  emoji. `create`, `plan`, `build`, `do`, `resume`, `respond`, `explain` and
+  `walkthru` follow it; specs, PR bodies, review comments and commits do not
+- `walkthru` skill: your PR review, done as a conversation. After `build`,
+  Claude walks you through the work as a junior developer reporting to their
+  senior — what was asked, the approach, the choices made (options, pick, why,
+  cost), each acceptance criterion against its proof, and the files that need
+  a close look, risky first. One item per turn; you approve, ask, or request a
+  change. It ends with a verdict and, only when CI is green, the review has no
+  blocker and nothing is open or requested, offers a squash-merge. Reads the
+  build's decision log (`.orc/tmp`, or the PR body if the container is gone),
+  the spec, the AI review comment and the diff. The session log
+  (`extract-session.sh`, uses `jq` if installed) only fills gaps
+
 ## [0.11.0]
 
 ### Added

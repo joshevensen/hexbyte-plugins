@@ -4,6 +4,8 @@ description: Explain what a file, a route, or a PR is doing in plain language, a
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `explain` is a read-only orientation aid — point it at a file, a route/URL,
 or a pull request and it summarizes what it does, in chat. It never writes
 files, never posts a GitHub comment, and never runs a command that mutates

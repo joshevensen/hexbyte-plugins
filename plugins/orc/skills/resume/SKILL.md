@@ -4,6 +4,8 @@ description: Continue a build that stopped after its PR reached ready-for-review
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `build` always rebuilds from scratch on a rerun — deliberately, so every run is
 deterministic. That's right whenever the PR is still **draft**: implementation
 itself is still in question there (an ambiguity gate, a failed wave, an
@@ -121,10 +123,12 @@ head_sha=$(git rev-parse HEAD)
   mirrors `build`'s steps 10-11 exactly, keep both in sync if either changes:
   run all five review agents plus `/code-review` in parallel against
   `git diff origin/main...HEAD` (passing the decision log from step 3 where
-  `build` passes it), auto-fix safe findings and re-verify, fill
+  `build` passes it), auto-fix safe findings and re-verify, resolve the
+  rest with the user the way `build` step 10 does (when you can ask), fill
   `ai-review.md` with the post-auto-fix `git rev-parse HEAD` as the new
   `sha:` marker, and post it via `gh pr comment` — never the PR description.
-  Then run `changelog-writer`/docblocks the same way `build` step 11 does.
+  Then run `changelog-writer`/docblocks and record decisions the same way
+  `build` step 11 does.
   If a residual BLOCKER remains, **gate: review blocker** (commit and push
   what exists, comment on the issue, `status:blocked`, stop). Otherwise
   continue to step 5.
@@ -186,5 +190,8 @@ gh issue edit {number} --remove-label "status:building,status:blocked" --add-lab
 
 ```
 PR resumed for #{number} — {pr-url}
-CI green, mergeable. Ready for your merge.
+CI green, mergeable. Ready for your review.
 ```
+
+End with the next-step line from `working-style.md`:
+`➡️ Next: /orc:walkthru #{pr} — continue?`
