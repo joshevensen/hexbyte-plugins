@@ -57,10 +57,19 @@ commands. Focus on whatever the work touches:
 You are choosing the technical approach: what to build on, which conventions to
 follow, and every non-obvious constraint the implementer needs.
 
+If research turns up a real fork — two reasonable approaches the issue doesn't
+settle — ask before writing the spec, not after. Batch the forks into one
+round (up to four per `AskUserQuestion` call). Each question carries your
+recommended approach as the first option, the realistic alternative(s), and
+what each costs. Anything you can decide from the code and `CLAUDE.md`, decide
+without asking. The chosen approach and the rejected ones go into the spec's
+Design Rationale.
+
 ### 3. Write the spec
 
 Invoke `spec-writer`, passing the issue body (scope and intent from `create`),
-whether it's a bug (`type:bug` present), and an output path of
+whether it's a bug (`type:bug` present), the approach decisions settled in
+step 2, and an output path of
 `.orc/tmp/{number}-spec.md`. It fills `${CLAUDE_PLUGIN_ROOT}/templates/spec.md`.
 
 **Every path the spec cites must actually exist** — a phantom path trips
@@ -70,7 +79,8 @@ whether it's a bug (`type:bug` present), and an output path of
 
 Read the drafted spec and surface its **Open Questions** and any acceptance
 criterion that isn't cleanly machine-verifiable. Work through them with the
-user, folding answers back into the spec, until **Open Questions reads `None.`**
+user — batched, each with your recommended answer first and the alternative's
+cost, per `working-style.md` — folding answers back into the spec, until **Open Questions reads `None.`**
 and every acceptance criterion is tied to a test, command, or observable
 outcome. This is the gate — the same one `build` re-checks. Do not weaken it.
 

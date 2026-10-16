@@ -4,6 +4,16 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 
 ## [0.12.0]
 
+### Changed
+- `build` asks instead of pausing when you're at the keyboard. Confidence and
+  ambiguity gates become batched questions, each with a recommended answer
+  first; unanswered, or in an unattended run, they gate as before. Before it
+  hands over the PR it works through every review finding it couldn't
+  auto-fix — fix or accept, one question each — and logs the outcome in the
+  decision log, which reaches the PR body and `walkthru`
+- `plan` asks about real approach forks before writing the spec, and asks
+  open questions in the same form: batched, recommendation first
+
 ### Added
 - `templates/working-style.md`: one place for how orc behaves and talks. Orc
   acts as a junior developer reporting to you as the senior — researches
