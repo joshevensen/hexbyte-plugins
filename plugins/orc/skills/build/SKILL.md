@@ -4,6 +4,8 @@ description: Take a specced issue from spec to open PR — decompose into a depe
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `build` takes one specced issue and drives it to an open, AI-reviewed PR for you
 to merge. An issue of any size is built in one `build` run producing one PR —
 there is no size gate. A draft PR opens right after branching (step 5) so you

@@ -4,6 +4,8 @@ description: Fetch unresolved PR comments — yours and everyone else's — and 
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `respond` only acts when you run it — nothing subscribes to webhooks or polls
 in the background. It walks every unresolved comment on the PR — yours and
 everyone else's — implements, commits, pushes, and stops — no CI check, no

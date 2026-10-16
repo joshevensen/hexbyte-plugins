@@ -4,6 +4,8 @@ description: Continue a build that stopped after its PR reached ready-for-review
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `build` always rebuilds from scratch on a rerun — deliberately, so every run is
 deterministic. That's right whenever the PR is still **draft**: implementation
 itself is still in question there (an ambiguity gate, a failed wave, an

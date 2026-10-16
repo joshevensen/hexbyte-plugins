@@ -4,6 +4,8 @@ description: Run the full orc pipeline — create, plan, build — for one simpl
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `do` is the fast path through the pipeline for work simple enough that
 running `/orc:create` → `/orc:plan` → `/orc:build` as three separate commands
 is pure overhead: a copy tweak, an obvious one-file bug fix, a small config

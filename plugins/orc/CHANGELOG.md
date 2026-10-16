@@ -5,6 +5,12 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 ## [0.12.0]
 
 ### Added
+- `templates/working-style.md`: one place for how orc behaves and talks. Orc
+  acts as a junior developer reporting to you as the senior — researches
+  before asking, asks only what changes the build, and brings every question
+  with a recommendation. Chat output is short lists with a small set of
+  emoji. `create`, `plan`, `build`, `do`, `resume`, `respond`, `explain` and
+  `walkthru` follow it; specs, PR bodies, review comments and commits do not
 - `walkthru` skill: your PR review, done as a conversation. After `build`,
   Claude walks you through the work as a junior developer reporting to their
   senior — what was asked, the approach, the choices made (options, pick, why,

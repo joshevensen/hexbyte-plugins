@@ -4,6 +4,8 @@ description: Take a draft issue from /orc:create, explore the codebase, choose a
 model: sonnet
 ---
 
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
+
 `plan` turns a scoped issue into a buildable one. It reads the issue `create`
 produced, researches the codebase, decides how to implement it, and writes the
 spec as a comment on the issue. It owns all spec-writing — the logic that used
