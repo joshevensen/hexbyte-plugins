@@ -5,12 +5,16 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 ## [0.12.0]
 
 ### Added
-- `walkthru` skill: Claude walks you through the work it just did, as a junior
-  developer explaining it to their lead — what it was asked, the approach,
-  decisions and why, tricky code, what it didn't do, how it tested. One
-  checklist item per turn; you approve, ask, or request a change. Gathers from
-  the conversation, the session log (`extract-session.sh`, uses `jq` if installed), git,
-  and the issue spec. Posts and writes nothing
+- `walkthru` skill: your PR review, done as a conversation. After `build`,
+  Claude walks you through the work as a junior developer reporting to their
+  senior — what was asked, the approach, the choices made (options, pick, why,
+  cost), each acceptance criterion against its proof, and the files that need
+  a close look, risky first. One item per turn; you approve, ask, or request a
+  change. It ends with a verdict and, only when CI is green, the review has no
+  blocker and nothing is open or requested, offers a squash-merge. Reads the
+  build's decision log (`.orc/tmp`, or the PR body if the container is gone),
+  the spec, the AI review comment and the diff. The session log
+  (`extract-session.sh`, uses `jq` if installed) only fills gaps
 
 ## [0.11.0]
 

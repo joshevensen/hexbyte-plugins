@@ -55,7 +55,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:respond` | Manually fetch every unresolved PR comment — yours and everyone else's — and resolve each one: your own are instructions, others are judged before acting (no subscription, no merge) |
 | `/orc:discuss` | Read-only exploration mode — no changes until you say go |
 | `/orc:explain` | Explain what a file, route, or PR is doing in plain language, at junior/intermediate/senior depth — read-only chat reply, nothing posted |
-| `/orc:walkthru` | Claude walks you through the work it just did, one checklist item at a time — approach, decisions, tricky code, gaps, testing. Interactive; change requests are recorded and offered at the end. Uses `jq` for the session log if installed; nothing posted |
+| `/orc:walkthru` | Your PR review as a conversation: what was built, the choices and why, criteria vs. proof, and the code to look at closely — one item at a time. Ends with a verdict and, if everything is clean, an optional squash-merge |
 
 `/orc:push`, `/orc:bump`, `/orc:list`, and `/orc:setup` moved to the
 [`util`](../util) plugin — install `util@hexbyte` alongside `orc` to keep
