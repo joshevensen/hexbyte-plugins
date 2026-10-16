@@ -188,5 +188,8 @@ gh issue edit {number} --remove-label "status:building,status:blocked" --add-lab
 
 ```
 PR resumed for #{number} — {pr-url}
-CI green, mergeable. Ready for your merge.
+CI green, mergeable. Ready for your review.
 ```
+
+End with the next-step line from `working-style.md`:
+`➡️ Next: /orc:walkthru #{pr} — continue?`

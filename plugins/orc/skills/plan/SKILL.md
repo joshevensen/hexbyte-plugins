@@ -102,5 +102,8 @@ rm .orc/tmp/{number}-spec.md
 
 ```
 #{number} specced — {ready to build | still draft: {what's open}}.
-Next: /orc:build {number}.
 ```
+
+If it's ready, end with the next-step line from `working-style.md`:
+`➡️ Next: /orc:build #{number} — continue?`. If it's still draft, say what's
+open and offer nothing.

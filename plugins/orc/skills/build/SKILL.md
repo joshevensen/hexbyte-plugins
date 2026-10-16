@@ -474,3 +474,7 @@ the same time.
 PR open for #{number} — {pr-url}
 CI green, mergeable. Review: {f} fixed with you, {a} accepted. Ready for your review.
 ```
+
+End with the next-step line from `working-style.md`:
+`➡️ Next: /orc:walkthru #{pr} — continue?` Not on a dry run, and not after a
+gate.

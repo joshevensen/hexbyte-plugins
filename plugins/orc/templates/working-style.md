@@ -37,8 +37,29 @@ is the scarce resource; spend it well.
   and only from this set:
   ✅ done or met · ⚠️ needs attention · 🔴 blocker or risky · 🟢 safe ·
   ❓ question · 💡 recommendation · 📋 summary · 🧭 approach · ⚖️ decision ·
-  📁 files · 🏁 final
+  📁 files · 🏁 final · ➡️ next step
 - Link code as `path:line`. Show a snippet only when the lines themselves are
   the point (15 lines at most).
 - No restating the question, no recap of what the reader just saw, no closing
   pleasantries.
+
+## Handing off
+
+One session carries one issue through `create` → `plan` → `build` →
+`walkthru`; merging is the result, not a skill. A skill that finishes with a
+next step ready ends by offering it.
+
+| When this finishes | Offer |
+|---|---|
+| `create` | `/orc:plan` on the issue (several issues: the first, and name the rest — each gets its own session) |
+| `plan`, status `ready` | `/orc:build` |
+| `build`, `resume`, or `do`, CI green and mergeable | `/orc:walkthru` |
+| `respond` | `/orc:resume` |
+| `walkthru`, `plan` still draft, any gate, any dry run | nothing |
+
+- **The last line of the message**, nothing after it:
+  `➡️ Next: /orc:plan #12 — continue?`
+- **Yes** → run that skill now, in this session, with the Skill tool and the
+  same issue or PR number. **Anything else** → stop; don't ask again.
+- Offer it only when the work is actually ready. If something is blocked, open,
+  or still draft, say what instead and offer nothing.

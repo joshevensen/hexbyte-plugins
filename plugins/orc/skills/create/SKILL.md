@@ -94,8 +94,13 @@ Created {n} issue(s):
   #{number} — {title}
   ...
 
-Next: /orc:plan {number} to research the codebase and write the spec.
 ```
+
+If several issues were filed, offer the first and name the rest as
+`#{n} in its own session`. End with the next-step line from
+`working-style.md`:
+
+`➡️ Next: /orc:plan #{number} — continue?`
 
 If several issues were split from one discussion, note the relationship between
 them (e.g. "#12 must land before #13") so `plan`/`build` order is clear.

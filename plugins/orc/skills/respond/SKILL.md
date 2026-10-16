@@ -187,5 +187,7 @@ git push
 ```
 PR #{pr}: {n} implemented and pushed, {m} answered, {d} declined with reason,
 {k} left open for clarification.
-Run /orc:resume {issue-number} for CI/mergeability, or merge yourself when ready.
 ```
+
+End with the next-step line from `working-style.md`:
+`➡️ Next: /orc:resume #{issue-number} — continue?` (CI and mergeability).

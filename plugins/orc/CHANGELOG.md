@@ -15,6 +15,12 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
   open questions in the same form: batched, recommendation first
 
 ### Added
+- Every pipeline skill ends by offering the next step —
+  `create` → `plan` → `build` → `walkthru` — as its last line
+  (`➡️ Next: /orc:plan #12 — continue?`). Yes runs it in the same session;
+  anything else stops. Nothing is offered while work is blocked, open or
+  draft, after a gate, or on a dry run. `respond` offers `resume`; `walkthru`
+  offers nothing, since merging is its verdict
 - `templates/working-style.md`: one place for how orc behaves and talks. Orc
   acts as a junior developer reporting to you as the senior — researches
   before asking, asks only what changes the build, and brings every question
