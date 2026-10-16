@@ -2,6 +2,16 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.3.1]
+
+### Fixed
+- `/util:setup` now works in Claude Code on the web, where GitHub GraphQL is
+  blocked (HTTP 403): preflight checks real access with `gh api` instead of
+  `gh auth status` (which falsely fails there), and `manage-labels` /
+  `migrate-labels` use the REST API via `gh api` instead of `gh label` /
+  `gh issue`. Behavior (`--dry-run`, `--prune`, `.orc/config/labels`,
+  protected labels, unrecognized-label report) is unchanged
+
 ## [0.3.0]
 
 ### Added

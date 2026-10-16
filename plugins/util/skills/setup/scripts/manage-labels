@@ -3,7 +3,8 @@
 # Default: upsert all managed labels (create if missing, update if present).
 # --prune: also delete any labels not in the managed set,
 #   excluding dynamic labels (blocked:*) and Dependabot-managed labels.
-# --dry-run: print what would change; no gh label calls are made.
+# --dry-run: print what would change; no write calls are made.
+# Uses the REST API only (gh api): GraphQL is blocked in Claude Code on the web.
 set -euo pipefail
 
 REPO="$1"
@@ -35,7 +36,25 @@ if [[ -f ".orc/config/labels" ]]; then
   done < ".orc/config/labels"
 fi
 
-EXISTING=$(gh label list --repo "$REPO" --limit 1000 --json name --jq '.[].name')
+urlencode() { jq -rn --arg s "$1" '$s | @uri'; }
+
+# Edit a label; if it doesn't exist (HTTP 404) create it. Any other error is fatal.
+upsert_label() {
+  local name="$1" color="$2" desc="$3" out
+  if out=$(gh api -X PATCH "repos/$REPO/labels/$(urlencode "$name")" \
+        -f color="$color" -f description="$desc" 2>&1 >/dev/null); then
+    return 0
+  fi
+  if [[ "$out" == *"404"* || "$out" == *"Not Found"* ]]; then
+    gh api -X POST "repos/$REPO/labels" -f name="$name" -f color="$color" \
+      -f description="$desc" >/dev/null
+  else
+    echo "Failed to edit label '$name': $out" >&2
+    return 1
+  fi
+}
+
+EXISTING=$(gh api --paginate "repos/$REPO/labels?per_page=100" --jq '.[].name')
 
 if [[ "$MODE" == "upsert" ]]; then
   for entry in "${MANAGED_LABELS[@]}"; do
@@ -44,13 +63,14 @@ if [[ "$MODE" == "upsert" ]]; then
       if [[ -n "$DRY_RUN" ]]; then
         echo "Would edit: $name (color=$color, description=\"$desc\")" >&2
       else
-        gh label edit "$name" --repo "$REPO" --color "$color" --description "$desc"
+        upsert_label "$name" "$color" "$desc"
       fi
     else
       if [[ -n "$DRY_RUN" ]]; then
         echo "Would create: $name (color=$color, description=\"$desc\")" >&2
       else
-        gh label create "$name" --repo "$REPO" --color "$color" --description "$desc"
+        gh api -X POST "repos/$REPO/labels" -f name="$name" -f color="$color" \
+          -f description="$desc" >/dev/null
       fi
     fi
   done
@@ -83,7 +103,7 @@ elif [[ "$MODE" == "prune" ]]; then
       if [[ -n "$DRY_RUN" ]]; then
         echo "Would delete: $label" >&2
       else
-        gh label delete "$label" --repo "$REPO" --yes
+        gh api -X DELETE "repos/$REPO/labels/$(urlencode "$label")" >/dev/null
         echo "Deleted: $label" >&2
       fi
     fi
