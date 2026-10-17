@@ -8,7 +8,7 @@ model: sonnet
 
 `/util:bump --dry-run` runs steps 1-5 exactly as normal — repo/PR discovery,
 the OSV/npm/major-version checks, and the parallel review agents are all
-read-only already. Only step 6 mutates: skip `gh pr merge`, and in CI fix
+read-only already. Only step 6 mutates: skip `gh-rest pr-merge`, and in CI fix
 mode skip the commit/push (still invoke `ci-debugger` and show its diagnosis,
 just don't apply it). For each PR, report what step 6 would have done instead
 of doing it:
@@ -21,7 +21,8 @@ DRY RUN — PR #{pr}: {would merge | CI failing, would attempt ci-debugger fix |
 ### 1. Identify the repo
 
 ```bash
-gh repo view --json nameWithOwner --jq '.nameWithOwner'
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight   # once; cached. Stop and show its message if it fails
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest repo
 ```
 
 Store as `{owner}/{repo}`.
@@ -31,11 +32,10 @@ Store as `{owner}/{repo}`.
 ### 2. Find Dependabot PRs
 
 ```bash
-gh pr list --repo {owner}/{repo} --state open --limit 20 \
-  --json number,title,author,headRefName,baseRefName
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} pr-list --limit 20   # [{number,title,author,head_ref,base_ref}]
 ```
 
-Filter to PRs where `author.login` is `app/dependabot`.
+Filter to PRs where `author` is `dependabot[bot]`.
 
 If none found:
 ```
@@ -131,13 +131,13 @@ WARNINGS
 ### 6. CI check, mergeability, and merge
 
 ```bash
-gh pr checks {pr} --repo {owner}/{repo} --watch --timeout 600
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} pr-checks {pr} --watch --timeout 600   # exit 0 pass, 1 fail, 8 pending
 ```
 
 If CI passes, check mergeability before merging — CI green doesn't mean
 conflict-free:
 ```bash
-gh pr view {pr} --repo {owner}/{repo} --json mergeable --jq .mergeable
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} pr-view {pr} | jq -r .mergeable
 ```
 If `CONFLICTING`: Dependabot usually re-resolves this itself on the next run,
 so report it and move to the next PR rather than resolving it here:
@@ -147,7 +147,7 @@ usually re-open this with a rebased diff; skipping for now.
 ```
 If mergeable, merge:
 ```bash
-gh pr merge {pr} --repo {owner}/{repo} --squash --delete-branch
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} pr-merge {pr} --delete-branch
 ```
 
 If any check fails, enter CI fix mode:

@@ -10,14 +10,14 @@ model: sonnet
 
 From the repository root, require `.orc/config/posts.config.json`. If missing, stop with: `Post infrastructure is not configured. Run /setup posts first.`
 
-Parse `posts_dir` and `post_list_issue` with a JSON parser. Resolve `posts_dir` relative to the repository root. Determine `{owner}/{repo}` with `gh repo view --json nameWithOwner --jq '.nameWithOwner'`.
+Parse `posts_dir` and `post_list_issue` with a JSON parser. Resolve `posts_dir` relative to the repository root. Determine `{owner}/{repo}` with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest repo` (REST only — `gh issue`/`gh repo` subcommands use GraphQL, which is blocked on Claude Code on the web).
 
 ### 2. Establish the topic
 
 If the user says `from ideas`, fetch the issue body:
 
 ```bash
-gh issue view {post_list_issue} --repo {owner}/{repo} --json body --jq '.body'
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} issue-view {post_list_issue} | jq -r .body
 ```
 
 Parse the `## Ideas` section, display each title and description, and let the user choose. Preserve the exact selected line for later removal.
@@ -82,7 +82,7 @@ Fetch the current issue body again immediately before editing. Preserve unrelate
 Write the revised body to a temporary file and run:
 
 ```bash
-gh issue edit {post_list_issue} --repo {owner}/{repo} --body-file {temp_file}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} issue-edit {post_list_issue} --body-file {temp_file}
 ```
 
 If the issue update fails, leave the created worktree intact and report the exact partial state; do not delete user work automatically.

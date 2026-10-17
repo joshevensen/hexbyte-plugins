@@ -5,7 +5,7 @@ model: sonnet
 ---
 
 The day-to-day loop (`create`, `plan`, `build`, `resume`, `push`, `list`)
-self-provisions its own labels — each defensively `gh label create`s a bare
+self-provisions its own labels — each defensively ensures a bare (`gh-rest label-ensure`)
 version of any `status:*` label right before it's first needed — and needs no
 setup to work in a fresh repo. That self-provisioning is intentionally minimal
 (no color or description); `setup` still owns the canonical color/description
@@ -39,11 +39,11 @@ or accept an `owner/repo` argument.
 ### 1. Preflight
 
 ```bash
-gh --version
-gh api repos/{owner}/{repo} --jq .full_name
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} preflight
 ```
 
-This tests real access to the repo rather than `gh auth status`, which reports
+This checks `gh` is installed and tests real access to the repo (result cached
+for 10 minutes, so repeat calls are free) rather than `gh auth status`, which reports
 a false failure in web sessions (the proxy authenticates API calls, so
 `GH_TOKEN` looks invalid even though requests work). Use REST (`gh api`) only:
 GraphQL (`gh issue/pr/label ...`) is blocked in web sessions with a 403.

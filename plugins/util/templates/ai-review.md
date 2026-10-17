@@ -1,5 +1,5 @@
 <!--
-Posted as a PR comment via `gh pr comment` — never folded into the PR
+Posted as a PR comment via `gh-rest pr-comment` — never folded into the PR
 description. The marker line must be the literal first line, with the full
 commit SHA review ran against (after any auto-fixes are committed) and the
 overall verdict: BLOCK if any BLOCKER remains, WARNING if any WARNING remains,

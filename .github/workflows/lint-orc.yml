@@ -3,13 +3,13 @@ name: Lint orc plugin
 on:
   pull_request:
     paths:
-      - "plugins/orc/**"
+      - "plugins/**"
       - ".github/scripts/lint-orc.py"
       - ".github/workflows/lint-orc.yml"
   push:
     branches: [main]
     paths:
-      - "plugins/orc/**"
+      - "plugins/**"
 
 jobs:
   lint:

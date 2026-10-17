@@ -18,14 +18,17 @@ grouped by status.
 ### 2. Fetch
 
 ```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight    # once; cached. Stop and show its message if it fails
+
 # with a status argument:
-gh issue list --state open --label "status:{status}" \
-  --json number,title,labels,updatedAt --limit 100
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-list --label "status:{status}" --limit 100
 
 # with no argument (all statuses):
-gh issue list --state open \
-  --json number,title,labels,updatedAt --limit 100
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-list --limit 100
 ```
+
+Each issue comes back as `{number, title, labels, updatedAt}` (REST only —
+the `gh issue` subcommands use GraphQL, which is blocked on Claude Code on the web).
 
 When listing everything, keep only issues that carry a `status:*` label and
 group them in pipeline order: draft → ready → building → blocked → built.

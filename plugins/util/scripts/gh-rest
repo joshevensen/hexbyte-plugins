@@ -1,0 +1,320 @@
+#!/usr/bin/env bash
+# gh-rest — GitHub operations over the REST API only.
+#
+# Claude Code on the web blocks GitHub GraphQL (HTTP 403), and most high-level
+# `gh` subcommands (`gh pr view`, `gh issue list`, `gh pr create`, …) use
+# GraphQL under the hood. This wraps the REST equivalents behind one stable
+# interface so skills never call a GraphQL-backed `gh` subcommand.
+#
+# Usage: gh-rest [-R owner/repo] <command> [args]
+#
+#   preflight                         verify gh + real repo access (cached 10 min)
+#   repo                              print owner/repo
+#   pr-find <branch> [open|all]       {number,url,state,draft} for a head branch, or nothing
+#   pr-list [--limit N]               open PRs: [{number,title,author,head_ref,base_ref}]
+#   pr-current                        number of the open PR for the current branch, or nothing
+#   pr-view <n>                       {number,title,body,state,draft,mergeable,url,head_sha,head_ref,base_ref,author}
+#   pr-create --title T (--body B | --body-file F) [--base main] [--draft]   -> {number,url}
+#   pr-edit <n> [--title T] [--body-file F]
+#   pr-ready <n> [--undo]             mark ready for review (--undo: back to draft)
+#   pr-comment <n> (--body B | --body-file F)
+#   pr-comments <n>                   conversation comments on the PR (JSON array)
+#   pr-review-comments <n>            inline review comments (JSON array)
+#   pr-threads <n>                    review threads [{id,isResolved,path,line,comments:[{id,author,body}]}]
+#   pr-reply <n> <comment_id> (--body B | --body-file F)   reply inside a review thread
+#   pr-resolve <n> <comment_id>       resolve the review thread holding that comment
+#   pr-checks <n> [--watch] [--timeout S]   exit 0 pass, 1 fail, 8 pending
+#   pr-checkout <n>                   fetch and check out the PR's head branch
+#   pr-merge <n> [--delete-branch]    squash-merge
+#   issue-view <n>                    {number,title,url,state,labels,body,comments:[{author,body,created_at}]}
+#   issue-list [--label L] [--limit N]    open issues (PRs excluded), JSON array
+#   issue-create --title T (--body B | --body-file F) [--label L]...   -> {number,url}
+#   issue-edit <n> [--add-label L]... [--remove-label L]... [--body-file F]
+#   issue-comment <n> (--body B | --body-file F)
+#   label-ensure <name> [color]       create the label if missing
+#
+# Commands that GitHub only exposes through GraphQL (ready-for-review, review
+# threads) use the Claude Code on the web routes under /pulls/{n}/ccr/… and
+# fall back to the GraphQL-backed `gh` command when those routes don't exist
+# (a local checkout, where GraphQL works).
+set -euo pipefail
+
+die() { echo "gh-rest: $*" >&2; exit 1; }
+
+REPO="${GH_REPO:-}"
+if [[ "${1:-}" == "-R" || "${1:-}" == "--repo" ]]; then
+  REPO="${2:?-R needs owner/repo}"
+  shift 2
+fi
+CMD="${1:-}"
+[[ -n "$CMD" ]] || die "no command given (see the header of this script)"
+shift
+
+repo() {
+  if [[ -z "$REPO" ]]; then
+    local url
+    url=$(git remote get-url origin 2>/dev/null) \
+      || die "no git origin remote here; pass -R owner/repo"
+    REPO=$(sed -E 's#\.git$##; s#^[^/@]+@[^:]+:#x/#' <<<"$url" | awk -F/ '{print $(NF-1)"/"$NF}')
+  fi
+  [[ "$REPO" == */* ]] || die "could not work out owner/repo from the origin remote; pass -R owner/repo"
+  echo "$REPO"
+}
+
+api() { gh api -H "Accept: application/vnd.github+json" "$@"; }
+rapi() { local r; r=$(repo); local path="$1"; shift; api "repos/$r/$path" "$@"; }
+urlencode() { jq -rn --arg s "$1" '$s | @uri'; }
+
+# body_args: sets BODY from --body / --body-file in "$@"; leaves the rest in REST_ARGS.
+parse_common() {
+  BODY="" TITLE="" BASE="main" DRAFT="false" BODY_SET="" TITLE_SET="" LIMIT=30 LABEL=""
+  ADD_LABELS=() REMOVE_LABELS=() LABELS=() UNDO="" WATCH="" TIMEOUT=0 DELETE_BRANCH=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --body) BODY="$2"; BODY_SET=1; shift 2 ;;
+      --body-file) BODY=$(cat "$2"); BODY_SET=1; shift 2 ;;
+      --title) TITLE="$2"; TITLE_SET=1; shift 2 ;;
+      --base) BASE="$2"; shift 2 ;;
+      --draft) DRAFT="true"; shift ;;
+      --label) LABEL="$2"; LABELS+=("$2"); shift 2 ;;
+      --add-label) IFS=',' read -ra _l <<<"$2"; ADD_LABELS+=("${_l[@]}"); shift 2 ;;
+      --remove-label) IFS=',' read -ra _l <<<"$2"; REMOVE_LABELS+=("${_l[@]}"); shift 2 ;;
+      --limit) LIMIT="$2"; shift 2 ;;
+      --undo) UNDO=1; shift ;;
+      --watch) WATCH=1; shift ;;
+      --timeout) TIMEOUT="$2"; shift 2 ;;
+      --delete-branch) DELETE_BRANCH=1; shift ;;
+      *) die "unknown option: $1" ;;
+    esac
+  done
+}
+
+case "$CMD" in
+  preflight)
+    command -v gh >/dev/null || die "gh is not installed. Local: https://cli.github.com. Claude Code on the web: add it to the environment's Setup script (see the plugin README)."
+    command -v jq >/dev/null || die "jq is not installed"
+    r=$(repo)
+    # Test real access, not `gh auth status`: in web sessions the proxy authenticates
+    # API calls, so GH_TOKEN looks invalid to `gh auth status` while requests succeed.
+    stamp="${TMPDIR:-/tmp}/gh-rest-preflight-${r//\//_}"
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0) < 600 )); then
+      echo "$r"
+      exit 0
+    fi
+    if out=$(api "repos/$r" --jq .full_name 2>&1); then
+      : >"$stamp"
+      echo "$out"
+    else
+      echo "gh-rest: cannot reach $r over the GitHub API:" >&2
+      echo "$out" | head -3 >&2
+      echo "Local: run \`gh auth login\`. Claude Code on the web: a 403/404 means the environment lacks access to this repo — fix that, not gh auth." >&2
+      exit 1
+    fi
+    ;;
+
+  repo) repo ;;
+
+  pr-find)
+    branch="${1:?branch}"; state="${2:-open}"
+    r=$(repo); owner="${r%%/*}"
+    [[ "$state" == "all" ]] && st=all || st=open
+    api -X GET "repos/$r/pulls" -f head="$owner:$branch" -f state="$st" -f per_page=1 \
+      --jq '.[0] // empty | {number, url: .html_url, state: (if .merged_at then "MERGED" else (.state | ascii_upcase) end), draft: .draft}'
+    ;;
+
+  pr-list)
+    parse_common "$@"
+    rapi pulls -X GET -f state=open -f per_page="$LIMIT" \
+      --jq '[.[] | {number, title, author: .user.login, head_ref: .head.ref, base_ref: .base.ref}]'
+    ;;
+
+  pr-current)
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    "$0" -R "$(repo)" pr-find "$branch" open | jq -r '.number // empty'
+    ;;
+
+  pr-view)
+    n="${1:?pr number}"
+    for _ in 1 2 3 4 5; do
+      j=$(rapi "pulls/$n")
+      # mergeable is computed asynchronously and is null until GitHub gets to it
+      [[ "$(jq '.mergeable' <<<"$j")" != "null" || "$(jq -r .state <<<"$j")" != "open" ]] && break
+      sleep 2
+    done
+    jq '{number, title, body: (.body // ""), url: .html_url,
+         state: (if .merged_at then "MERGED" else (.state | ascii_upcase) end),
+         draft, head_sha: .head.sha, head_ref: .head.ref, base_ref: .base.ref,
+         author: .user.login,
+         mergeable: (if .mergeable == true then "MERGEABLE" elif .mergeable == false then "CONFLICTING" else "UNKNOWN" end)}' <<<"$j"
+    ;;
+
+  pr-create)
+    parse_common "$@"
+    [[ -n "$TITLE_SET" ]] || die "pr-create needs --title"
+    head=$(git rev-parse --abbrev-ref HEAD)
+    jq -n --arg t "$TITLE" --arg b "$BODY" --arg h "$head" --arg base "$BASE" --argjson d "$DRAFT" \
+      '{title: $t, body: $b, head: $h, base: $base, draft: $d}' \
+      | rapi pulls --input - --jq '{number, url: .html_url}'
+    ;;
+
+  pr-edit)
+    n="${1:?pr number}"; shift
+    parse_common "$@"
+    jq -n --arg t "$TITLE" --arg b "$BODY" --arg ts "$TITLE_SET" --arg bs "$BODY_SET" \
+      '({} + (if $ts != "" then {title: $t} else {} end) + (if $bs != "" then {body: $b} else {} end))' \
+      | rapi "pulls/$n" -X PATCH --input - --silent
+    ;;
+
+  pr-ready)
+    n="${1:?pr number}"; shift
+    parse_common "$@"
+    route=ready_for_review; ghcmd=(gh pr ready "$n")
+    if [[ -n "$UNDO" ]]; then route=convert_to_draft; ghcmd+=(--undo); fi
+    r=$(repo)
+    if ! out=$(api -X POST "repos/$r/pulls/$n/ccr/$route" 2>&1); then
+      # No CCR route (local checkout): GraphQL is available there.
+      "${ghcmd[@]}" -R "$r" || die "could not change draft state of #$n: $out"
+    fi
+    ;;
+
+  pr-comment|issue-comment)
+    n="${1:?number}"; shift
+    parse_common "$@"
+    [[ -n "$BODY_SET" ]] || die "$CMD needs --body or --body-file"
+    jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/$n/comments" --input - --jq '.html_url'
+    ;;
+
+  pr-comments)
+    n="${1:?pr number}"
+    rapi "issues/$n/comments" --paginate \
+      --jq '.[] | {id, author: .user.login, body, created_at, url: .html_url}' | jq -s '.'
+    ;;
+
+  pr-review-comments)
+    n="${1:?pr number}"
+    rapi "pulls/$n/comments" --paginate \
+      --jq '.[] | {id, in_reply_to_id, author: .user.login, path, line, body, created_at, url: .html_url}' | jq -s '.'
+    ;;
+
+  pr-threads)
+    n="${1:?pr number}"; r=$(repo)
+    if out=$(api "repos/$r/pulls/$n/ccr/review_threads" 2>/dev/null); then
+      # The web route lists comment ids only; join the bodies/authors in so both
+      # paths return the same shape.
+      cmts=$("$0" -R "$r" pr-review-comments "$n")
+      jq -n --argjson t "$out" --argjson c "$cmts" \
+        '[$t[] | {id: .comment_ids[0], isResolved: .resolved, outdated, path, line,
+                  comments: [.comment_ids[] as $i | $c[] | select(.id == $i) | {id, author, body}]}]'
+    else
+      # No CCR route (local checkout): GraphQL is available there.
+      gh api graphql -F owner="${r%%/*}" -F name="${r##*/}" -F number="$n" -f query='
+        query($owner:String!,$name:String!,$number:Int!){
+          repository(owner:$owner,name:$name){pullRequest(number:$number){
+            reviewThreads(first:100){nodes{id isResolved path line
+              comments(first:50){nodes{databaseId author{login} body}}}}}}}' \
+        --jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+               | {id, isResolved, path, line,
+                  comments: [.comments.nodes[] | {id: .databaseId, author: .author.login, body}]}]'
+    fi
+    ;;
+
+  pr-reply)
+    n="${1:?pr number}"; cid="${2:?comment id}"; shift 2
+    parse_common "$@"
+    [[ -n "$BODY_SET" ]] || die "pr-reply needs --body or --body-file"
+    jq -n --arg b "$BODY" '{body: $b}' | rapi "pulls/$n/comments/$cid/replies" --input - --jq '.html_url'
+    ;;
+
+  pr-resolve)
+    n="${1:?pr number}"; cid="${2:?comment id}"; r=$(repo)
+    if ! api -X POST "repos/$r/pulls/$n/ccr/comments/$cid/resolve" --silent 2>/dev/null; then
+      tid=$("$0" -R "$r" pr-threads "$n" | jq -r --argjson c "$cid" \
+        '[.[] | select(any(.comments[]; .id == $c))][0].id // empty')
+      [[ -n "$tid" ]] || die "no review thread contains comment $cid"
+      gh api graphql -f id="$tid" -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' --silent
+    fi
+    ;;
+
+  pr-checks)
+    n="${1:?pr number}"; shift
+    parse_common "$@"
+    r=$(repo); start=$(date +%s)
+    while :; do
+      sha=$(rapi "pulls/$n" --jq .head.sha)
+      rows=$( { rapi "commits/$sha/check-runs" --paginate --jq '.check_runs[] | [.name, (if .status != "completed" then "pending" elif (.conclusion | IN("success","neutral")) then "pass" elif .conclusion == "skipped" then "skipping" else "fail" end), (.html_url // "")] | @tsv';
+               rapi "commits/$sha/status" --jq '.statuses[] | [.context, (if .state == "success" then "pass" elif .state == "pending" then "pending" else "fail" end), (.target_url // "")] | @tsv'; } )
+      pending=$(grep -c -P '\tpending\t' <<<"$rows" || true)
+      if [[ -z "$WATCH" || "$pending" -eq 0 ]]; then break; fi
+      if (( TIMEOUT > 0 && $(date +%s) - start >= TIMEOUT )); then echo "gh-rest: timed out waiting for checks" >&2; break; fi
+      sleep 10
+    done
+    [[ -n "$rows" ]] && echo "$rows"
+    if grep -q -P '\tfail\t' <<<"$rows"; then exit 1; fi
+    if grep -q -P '\tpending\t' <<<"$rows"; then exit 8; fi
+    ;;
+
+  pr-checkout)
+    n="${1:?pr number}"
+    ref=$(rapi "pulls/$n" --jq .head.ref)
+    git fetch origin "$ref"
+    git checkout "$ref"
+    ;;
+
+  pr-merge)
+    n="${1:?pr number}"; shift
+    parse_common "$@"
+    ref=$(rapi "pulls/$n" --jq .head.ref)
+    echo '{"merge_method":"squash"}' | rapi "pulls/$n/merge" -X PUT --input - --jq '.message'
+    [[ -n "$DELETE_BRANCH" ]] && rapi "git/refs/heads/$(urlencode "$ref" | sed 's/%2F/\//g')" -X DELETE --silent || true
+    ;;
+
+  issue-view)
+    n="${1:?issue number}"
+    issue=$(rapi "issues/$n")
+    comments=$(rapi "issues/$n/comments" --paginate \
+      --jq '.[] | {author: .user.login, body, created_at, url: .html_url}' | jq -s '.')
+    jq --argjson c "$comments" '{number, title, url: .html_url, state: (.state | ascii_upcase),
+         labels: [.labels[].name], body: (.body // ""), comments: $c}' <<<"$issue"
+    ;;
+
+  issue-list)
+    parse_common "$@"
+    args=(-f state=open -f per_page=100)
+    [[ -n "$LABEL" ]] && args+=(-f labels="$LABEL")
+    rapi issues -X GET --paginate "${args[@]}" \
+      --jq '.[] | select(.pull_request | not) | {number, title, labels: [.labels[].name], updatedAt: .updated_at}' \
+      | jq -s --argjson n "$LIMIT" '.[:$n]'
+    ;;
+
+  issue-create)
+    parse_common "$@"
+    [[ -n "$TITLE_SET" ]] || die "issue-create needs --title"
+    labels=$(printf '%s\n' "${LABELS[@]:-}" | jq -R . | jq -s 'map(select(. != ""))')
+    jq -n --arg t "$TITLE" --arg b "$BODY" --argjson l "$labels" '{title: $t, body: $b, labels: $l}' \
+      | rapi issues --input - --jq '{number, url: .html_url}'
+    ;;
+
+  issue-edit)
+    n="${1:?issue number}"; shift
+    parse_common "$@"
+    if (( ${#ADD_LABELS[@]} )); then
+      printf '%s\n' "${ADD_LABELS[@]}" | jq -R . | jq -s '{labels: .}' | rapi "issues/$n/labels" --input - --silent
+    fi
+    for l in "${REMOVE_LABELS[@]:-}"; do
+      [[ -n "$l" ]] || continue
+      rapi "issues/$n/labels/$(urlencode "$l")" -X DELETE --silent 2>/dev/null || true  # absent label is fine
+    done
+    if [[ -n "$BODY_SET" ]]; then
+      jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/$n" -X PATCH --input - --silent
+    fi
+    ;;
+
+  label-ensure)
+    name="${1:?label name}"; color="${2:-ededed}"
+    rapi "labels/$(urlencode "$name")" --silent 2>/dev/null \
+      || jq -n --arg n "$name" --arg c "$color" '{name: $n, color: $c}' | rapi labels --input - --silent >/dev/null 2>&1 \
+      || true
+    ;;
+
+  *) die "unknown command: $CMD" ;;
+esac

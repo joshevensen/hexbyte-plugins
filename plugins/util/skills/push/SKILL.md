@@ -11,10 +11,10 @@ model: sonnet
 `/util:push --dry-run` runs the size check and commits locally (step 5) exactly
 as normal — real commits on a real local branch, inspectable with `git log` /
 `git diff origin/main...HEAD`. It skips `git push` there and everywhere after.
-Step 6's `gh pr create` is skipped (print the title/body it would have used
+Step 6's `gh-rest pr-create` is skipped (print the title/body it would have used
 instead — there's no pushed branch for a real PR to attach to anyway). Step
 7's review agents still run in full (local, read-only) and auto-fixes still
-commit locally, but the final `gh pr comment` is skipped (print what it would
+commit locally, but the final `gh-rest pr-comment` is skipped (print what it would
 have posted). Step 8 (CI, mergeability) has nothing real to check without a
 pushed PR, so skip it and say so. End with:
 ```
@@ -58,14 +58,15 @@ git push -u origin HEAD
 Open the PR now, before review — review needs a PR to comment on:
 
 ```bash
-pr=$(gh pr view --json number --jq .number 2>/dev/null)
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight   # once; cached. Stop and show its message if it fails
+pr=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-current)
 ```
 
-If none exists, create one — `gh pr create` has no `--json`, it prints only
-the URL, so read `{pr}` back from that:
+If none exists, create one — it prints `{number,url}`, and `{pr}` is the
+`number`. (REST only: the `gh pr` subcommands use GraphQL, which is
+blocked on Claude Code on the web.)
 ```bash
-pr_url=$(gh pr create --title "{message}" --body "{message}" --base main)
-pr=$(basename "$pr_url")
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --title "{message}" --body "{message}" --base main
 ```
 
 ### 7. Review
@@ -105,20 +106,20 @@ duplicates merged, NOTEs dropped. Capture the current commit (`git rev-parse HEA
 fix commits above) for the template's `sha:` marker, and post it as a **PR
 comment** — never fold review content into the PR description:
 ```bash
-gh pr comment {pr} --body-file {filled-template}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comment {pr} --body-file {filled-template}
 ```
 
 ### 8. Merge readiness
 
 **CI:**
 ```bash
-gh pr checks {pr} --watch
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr} --watch   # exit 0 pass, 1 fail, 8 pending
 ```
 If a check fails, fetch the log and diff, invoke `ci-debugger`, and confirm the fix with the user before applying (this is interactive — don't auto-apply silently). Commit, push, re-watch.
 
 **Mergeability:**
 ```bash
-gh pr view {pr} --json mergeable --jq .mergeable
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .mergeable
 ```
 If `CONFLICTING`: `git fetch origin && git rebase origin/main` to surface markers, invoke `conflict-classifier`, resolve simple conflicts, surface complex ones to the user. Push `--force-with-lease`.
 

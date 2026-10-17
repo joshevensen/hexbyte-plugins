@@ -46,16 +46,21 @@ without --dry-run to push and post replies.
 If `{pr}` is given, use it. Otherwise detect it from the current branch:
 
 ```bash
-pr=$(gh pr view --json number --jq .number 2>/dev/null)
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight          # once; cached. Stop and show its message if it fails
+pr=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-current)
 ```
 
 If neither yields a number, stop and ask which PR to respond to.
+
+GitHub calls in this skill go through `gh-rest` (REST only), never
+`gh issue`/`gh pr`/`gh repo` subcommands or raw GraphQL queries — GraphQL is
+blocked with a 403 in Claude Code on the web.
 
 ### 1. Sync
 
 ```bash
 git fetch origin
-gh pr checkout {pr}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checkout {pr}
 git fetch origin main
 ```
 
@@ -72,28 +77,11 @@ dropped at this stage purely for authorship.
 **Unresolved review threads** (inline comments left via a "Files changed" review):
 
 ```bash
-owner=$(gh repo view --json owner --jq .owner.login)
-repo=$(gh repo view --json name --jq .name)
-gh api graphql -f query='
-  query($owner:String!, $repo:String!, $pr:Int!) {
-    repository(owner:$owner, name:$repo) {
-      pullRequest(number:$pr) {
-        reviewThreads(first:100) {
-          nodes {
-            id
-            isResolved
-            comments(first:50) {
-              nodes { id body path line author { login } }
-            }
-          }
-        }
-      }
-    }
-  }' -f owner={owner} -f repo={repo} -F pr={pr} \
-  --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-threads {pr} | jq '.[] | select(.isResolved == false)'
 ```
 
-A thread's authorship is decided by its **first** comment — the one that
+Each thread carries its `comments` (`id`, `author`, `body`) plus `path` and
+`line`. A thread's authorship is decided by its **first** comment — the one that
 opened it — regardless of who replied afterward.
 
 **orc's own notes are not requests.** A comment whose body starts with
@@ -107,7 +95,7 @@ by you:
 **Unanswered general PR comments** (top-level conversation, not tied to a review):
 
 ```bash
-gh pr view {pr} --json comments --jq '.comments'
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comments {pr}
 ```
 
 Skip any comment whose body starts with `<!-- orc:` (see above). Walk the
@@ -135,9 +123,9 @@ confirmation:
   ```
 - **A genuine question** (nothing to change, an answer is what's being
   asked for): reply directly, no code change:
-  - General comment: `gh pr comment {pr} --body "{reply}"`
-  - Review thread: reply in-thread via GraphQL
-    `addPullRequestReviewThreadReply` with the thread `id` and `{reply}` body.
+  - General comment: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comment {pr} --body "{reply}"`
+  - Review thread: reply in-thread with
+    `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-reply {pr} {first-comment-id} --body "{reply}"`.
 - **Genuinely ambiguous** (conflicting with another comment, or unclear what
   change is wanted): don't guess — reply asking for clarification the same
   way as a question, and leave the thread unresolved (skip the resolve step
@@ -169,9 +157,7 @@ Every non-author item gets a reply either way — never resolve one silently.
 After acting on or replying to a **review thread**, resolve it (skip this
 only for a thread left open pending clarification/a human answer):
 ```bash
-gh api graphql -f query='
-  mutation($id:ID!) { resolveReviewThread(input:{threadId:$id}) { thread { id } } }
-' -f id={thread-id}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-resolve {pr} {first-comment-id}
 ```
 General comments have no resolve state — a posted reply is the terminus.
 

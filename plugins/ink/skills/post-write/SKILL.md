@@ -36,6 +36,6 @@ Draft the Answer Section last, then position it after the lead in. Omit FAQ for 
 
 Check that `post.md` has no YAML frontmatter, follows the declared type, and is reasonably near its target length. Use a YAML parser to set `status: draft` without changing other fields.
 
-Fetch the current post-list issue body, locate the row by `{nnn}`, update only its status to `draft`, and write it back using `gh issue edit --body-file`.
+Fetch the current post-list issue body, locate the row by `{nnn}`, update only its status to `draft`, and write it back using `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {post_list_issue} --body-file`.
 
 Report the draft path and approximate word count.

@@ -17,7 +17,7 @@ but every issue it creates reads `Open Questions: None.`
 
 `/orc:create --dry-run` runs the full discussion and open-question resolution
 normally — nothing there touches GitHub anyway. At step 4, skip the label
-self-provisioning and `gh issue create` calls; instead show each issue exactly
+self-provisioning and `gh-rest issue-create` calls; instead show each issue exactly
 as it would be filed (title, body, labels) and stop:
 ```
 DRY RUN — would create {n} issue(s):
@@ -75,14 +75,13 @@ reproduction and a regression test). Otherwise no type label.
 
 ```bash
 # labels self-provision (idempotent)
-gh label create "status:draft" -f >/dev/null 2>&1 || true
-gh label create "type:bug"     -f >/dev/null 2>&1 || true   # bugs only
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight                       # once; cached
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:draft"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "type:bug"          # bugs only
 
-# gh issue create has no --json/--jq — it prints only the issue URL, so pull
-# the number from that
-url=$(gh issue create --title "{title}" --body "{body with Open Questions: None.}" \
-  --label "status:draft{,type:bug if a defect}")
-number=$(basename "$url")
+# prints {number,url}; repeat --label for each label
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-create --title "{title}" --body "{body with Open Questions: None.}" \
+  --label "status:draft" --label "type:bug"   # type:bug only if a defect
 ```
 
 Every issue starts at `status:draft` — it has a resolved scope but no spec yet.

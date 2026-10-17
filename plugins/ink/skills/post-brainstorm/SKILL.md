@@ -10,7 +10,7 @@ model: sonnet
 
 Require `.orc/config/posts.config.json`; otherwise stop with: `Post infrastructure is not configured. Run /setup posts first.` Parse `post_list_issue` and determine `{owner}/{repo}`.
 
-Fetch the issue body with `gh issue view`. Read `.orc/config/editorial-guidelines.md`; if missing, stop and direct the user to `/setup posts` rather than inventing a strategy.
+Fetch the issue body with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {post_list_issue}` (`.body`). Read `.orc/config/editorial-guidelines.md`; if missing, stop and direct the user to `/setup posts` rather than inventing a strategy.
 
 Summarize existing Ideas and existing post titles/statuses to avoid duplicates and identify coverage gaps.
 
@@ -44,6 +44,6 @@ For each accepted idea, format one line:
 - {Title} — {one-line description}
 ```
 
-Fetch the issue body again immediately before editing. Add only non-duplicate lines beneath `## Ideas`, preserving all tables and unrelated content. Write the body to a temporary file and update with `gh issue edit --body-file`.
+Fetch the issue body again immediately before editing. Add only non-duplicate lines beneath `## Ideas`, preserving all tables and unrelated content. Write the body to a temporary file and update with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {post_list_issue} --body-file`.
 
 If no idea is accepted, make no changes. Report the titles added.

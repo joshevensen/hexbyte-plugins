@@ -22,12 +22,14 @@ You are a GitHub issue loader. You receive an issue number in the prompt (and op
 
 ## How to fetch
 
-Use `gh` CLI:
+Use the REST helper (the `gh issue` subcommands use GitHub GraphQL, which is blocked in Claude Code on the web):
 ```
-gh issue view {number} --json number,title,url,labels,body,comments
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {number}
 ```
 
-If a repo is specified in the prompt, add `--repo {owner/repo}`.
+It prints JSON with `number`, `title`, `url`, `state`, `labels` (names), `body`, and `comments` (each `author`, `body`, `created_at`).
+
+If a repo is specified in the prompt, add `-R {owner/repo}` before the command: `gh-rest -R {owner/repo} issue-view {number}`.
 
 ## Output format
 

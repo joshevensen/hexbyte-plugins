@@ -28,7 +28,7 @@ Ask whether to remove the entry entirely or move the topic back to Ideas with a 
 
 ### 3. Preserve issue intent first
 
-Fetch the current issue body. Remove the row identified by `{nnn}`. If retaining the topic, add `- {Title} — {description}` beneath Ideas unless it already exists. Preserve unrelated content and update with `gh issue edit --body-file`.
+Fetch the current issue body. Remove the row identified by `{nnn}`. If retaining the topic, add `- {Title} — {description}` beneath Ideas unless it already exists. Preserve unrelated content and update with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {post_list_issue} --body-file`.
 
 If the issue update fails, stop before deleting local data.
 

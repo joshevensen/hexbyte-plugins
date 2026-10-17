@@ -2,7 +2,7 @@
 name: walkthru
 description: Walk the engineer through a finished build as a junior developer reporting to their senior — what was asked, the approach, the choices made and why, whether each acceptance criterion is met, and the code that needs a close look — then end with a merge decision. Interactive, one item at a time; replaces the GitHub PR review. Use after /orc:build, or when the engineer says "walk me through it" or wants to understand a change before shipping it. Invoke as /orc:walkthru [pr number | topic | commit range like HEAD~3.. | --uncommitted].
 model: sonnet
-allowed-tools: Bash(bash *walkthru/extract-session.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git symbolic-ref:*), Bash(git branch:*), Bash(gh issue view:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh pr checks:*), Bash(gh pr diff:*)
+allowed-tools: Bash(bash *walkthru/extract-session.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git symbolic-ref:*), Bash(git branch:*), Bash(*scripts/gh-rest preflight), Bash(*scripts/gh-rest pr-find:*), Bash(*scripts/gh-rest pr-view:*), Bash(*scripts/gh-rest pr-comments:*), Bash(*scripts/gh-rest pr-checks:*), Bash(*scripts/gh-rest issue-view:*), Bash(gh pr diff:*)
 ---
 
 ## User Input
@@ -37,21 +37,21 @@ during the walkthrough (unless the senior says "do it now").
 
 Collect what exists, best source first. Missing sources are normal — use what you have.
 
-1. **Find the PR and issue.** `$ARGUMENTS` PR number, else `gh pr list --head <branch>`. The issue number
+1. **Find the PR and issue.** `$ARGUMENTS` PR number, else `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find <branch>` (REST; the `gh pr` list/view subcommands use GraphQL, which is blocked on the web). The issue number
    is in the branch name, PR body (`Closes #n`) or commits.
 2. **The build's own record** (when the work came from `/orc:build`):
    - `.orc/tmp/{issue}-decisions.md` — the decision log: choices, rejected alternatives, departures from
      the spec, constraints. If the file is gone (new container), read the same log from the PR body's
-     hidden `<!-- orc:decisions … -->` block (`gh pr view {pr} --json body`). Treat the log as the source of
+     hidden `<!-- orc:decisions … -->` block (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr}`, `.body`). Treat the log as the source of
      truth for *why*; never invent reasons it doesn't hold.
    - `.orc/decisions/resolved.md` — the rules in force, for the Rules item.
-   - The AI review comment (`gh pr view {pr} --json comments`): the `verdict:` marker, what is still open,
+   - The AI review comment (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comments {pr}`): the `verdict:` marker, what is still open,
      the hidden `orc:warnings` block, and any deploy-risk findings.
-3. **The spec.** `gh issue view {issue} --comments` — the Spec comment. Acceptance Criteria (each with
+3. **The spec.** `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {issue}` — the Spec comment. Acceptance Criteria (each with
    "verified by:"), In/Out of Scope, Design Rationale.
 4. **The change itself.** `gh pr diff {pr}` (or, with no PR, `git diff $(git merge-base HEAD <base>)` plus
    uncommitted). Base = `git symbolic-ref refs/remotes/origin/HEAD`, fallback `main`/`master`.
-   CI state: `gh pr checks {pr}`.
+   CI state: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr}`.
 5. **This conversation, then the session log** — only to fill gaps (what was tried, what failed):
    ```bash
    bash ${CLAUDE_PLUGIN_ROOT}/skills/walkthru/extract-session.sh ${CLAUDE_SESSION_ID}
@@ -204,7 +204,7 @@ Then ask for the verdict with `AskUserQuestion`:
   or a recorded decision also updates `.orc/decisions/` — settle it as
   `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md` describes.
 - **No change requests**, and CI is green, the review verdict is not BLOCK, and no open items remain →
-  **Squash-merge it** / **Not yet**. Only on **Squash-merge it**, run `gh pr merge {pr} --squash` and report
+  **Squash-merge it** / **Not yet**. Only on **Squash-merge it**, run `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-merge {pr}` and report
   the result in one line. Never merge on anything weaker than that explicit choice.
 - **No change requests, but something blocks the merge** (red CI, BLOCK verdict, open item) → say exactly
   what in one line and offer **Stop here**. Never offer to merge past it.
