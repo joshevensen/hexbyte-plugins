@@ -67,7 +67,35 @@ Collect what exists, best source first. Missing sources are normal — use what 
 "I didn't build this — I'm explaining from the diff and spec, so I can tell you what, not what else was
 considered." Decisions become "inferred from the code" or are dropped. No PR → no CI or merge step.
 
-## 2. Build the agenda
+## 2. File check — before the agenda
+
+Right after gathering, show the list of changed files so the senior can spot surprises. Not the diff.
+
+- Source: `gh pr diff {pr} --name-only` plus `git diff --numstat` (or `git diff --stat` with no PR), plus
+  uncommitted files when in scope.
+- Format: one line per file, grouped by area, with `+added/-removed` and a 2–4 word purpose from the
+  decision log or spec, or _(inferred)_ when neither says. Mark files no criterion explains with ⚠️.
+  Over ~25 files → collapse safe files (tests, lockfiles, generated, docs) into one line with a count.
+- Header line: file count, total `+/-`, migrations or config/env files if any.
+
+Then ask with `AskUserQuestion` (header: `Files`):
+
+- **Continue** — go to the agenda
+- **Show code** — which files? (multiSelect over the largest/riskiest, or free text via "Other")
+- **Why were these changed?** — which files? (same)
+
+Respond:
+
+- **Show code** → for each named file show only the changed hunks, trimmed to what matters (≤ 30 lines per
+  file, link the rest as `path:line`). Never dump the full diff.
+- **Why** → give the reason from the decision log, spec or session, tagged with its source. No record →
+  "no record — inferred from the code" or "I don't know". Never invent a reason.
+- Then ask again. Loop until they choose **Continue**. Anything they flag here becomes a note to raise in
+  the matching agenda item, or a change request if they say so.
+
+This step does not count toward the agenda or its item count. Skip it only when there are no changed files.
+
+## 3. Build the agenda
 
 | Item | When | Content |
 |---|---|---|
@@ -107,7 +135,7 @@ Here's what I'll walk you through:
 - [ ] 🏁 Verdict
 ```
 
-## 3. Walk through — one item per turn
+## 4. Walk through — one item per turn
 
 For each item:
 
@@ -153,7 +181,7 @@ caller" — follow it and keep the checklist state.
 "I don't know why — that isn't in the log" or "I'd have to check" (then check: read the code, run the
 test). Never fill a gap with a plausible-sounding reason.
 
-## 4. Wrap up — the verdict
+## 5. Wrap up — the verdict
 
 Show the final checklist with outcomes:
 
