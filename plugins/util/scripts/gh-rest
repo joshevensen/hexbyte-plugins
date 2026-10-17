@@ -199,7 +199,12 @@ case "$CMD" in
   pr-threads)
     n="${1:?pr number}"; r=$(repo)
     if out=$(api "repos/$r/pulls/$n/ccr/review_threads" 2>/dev/null); then
-      echo "$out"
+      # The web route lists comment ids only; join the bodies/authors in so both
+      # paths return the same shape.
+      cmts=$("$0" -R "$r" pr-review-comments "$n")
+      jq -n --argjson t "$out" --argjson c "$cmts" \
+        '[$t[] | {id: .comment_ids[0], isResolved: .resolved, outdated, path, line,
+                  comments: [.comment_ids[] as $i | $c[] | select(.id == $i) | {id, author, body}]}]'
     else
       # No CCR route (local checkout): GraphQL is available there.
       gh api graphql -F owner="${r%%/*}" -F name="${r##*/}" -F number="$n" -f query='
