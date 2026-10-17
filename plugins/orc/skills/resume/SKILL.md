@@ -21,9 +21,9 @@ Rebuilding from scratch there re-does real, correct work to fix nothing.
 `/orc:resume {number} --dry-run` runs steps 1-3 exactly as normal (they're
 read-only), and in step 4 actually runs the review agents if review turns out
 stale (that's read-only until the final post) — local auto-fix commits still
-happen so you can inspect them, but skip the `gh pr comment` post itself and
+happen so you can inspect them, but skip the `gh-rest pr-comment` post itself and
 print what it would have said. In step 5, run `pr-context-writer` but skip
-the `gh pr edit` and `gh api` posts, printing them instead. In step 6, still
+the `gh-rest pr-edit` and `gh api` posts, printing them instead. In step 6, still
 watch CI and check mergeability — those are read-only too. Skip only the
 mutations a real fix would need: if CI fails, show `ci-debugger`'s diagnosis but don't commit/push
 its fix; if the PR is `CONFLICTING`, show `conflict-classifier`'s
@@ -42,6 +42,15 @@ Re-run without --dry-run to apply and resume.
 Require an issue number (`^\d+$`) as `{number}`. If none is given, stop and
 ask which issue to resume.
 
+Check GitHub access once, up front (cached, so repeat calls are free). If it
+fails, stop and show its message. GitHub calls in this skill go through
+`gh-rest` (REST only), never `gh issue`/`gh pr`/`gh repo` subcommands — those
+use GraphQL, which Claude Code on the web blocks with a 403.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight
+```
+
 ### 1. Load and classify
 
 Invoke `issue-loader` with `{number}`. Use the returned slug and status.
@@ -55,8 +64,7 @@ Invoke `issue-loader` with `{number}`. Use the returned slug and status.
 ### 2. Find the PR and check it's past the review gate
 
 ```bash
-gh pr list --head "issue/{number}-{slug}" --state all \
-  --json number,url,state,isDraft --jq '.[0]'
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find "issue/{number}-{slug}" all   # {number,url,state,draft} or empty
 ```
 
 - **No PR found** — the previous run gated before step 5 of `build` (spec,
@@ -65,13 +73,13 @@ gh pr list --head "issue/{number}-{slug}" --state all \
 - **PR found but `MERGED` or `CLOSED`** — `status:blocked` doesn't match
   reality (issue should be `status:built`, or the PR was closed by hand).
   Report the mismatch and stop rather than guessing what the user intended.
-- **PR found, `OPEN`, but still `isDraft: true`** — implementation isn't
+- **PR found, `OPEN`, but still `draft: true`** — implementation isn't
   finished (a gate before step 9 of `build`: ambiguity or a focused-verification
   failure mid-wave). There's real but incomplete work on the branch — resuming
   into it risks building on a decision that was never actually settled. Report
   this and point to `/orc:build {number}` (which reuses this draft PR rather
   than recreating it). Stop.
-- **PR found, `OPEN`, `isDraft: false`** — implementation is done and the PR
+- **PR found, `OPEN`, `draft: false`** — implementation is done and the PR
   reached the review gate. Continue to step 3.
 
 ### 3. Check out the existing branch
@@ -92,7 +100,7 @@ state reasons the log holds:
 
 ```bash
 mkdir -p .orc/tmp
-gh pr view {pr} --json body --jq .body \
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .body \
   | sed -n '/<!-- orc:decisions/,/^-->/p' | sed '1d;$d' > .orc/tmp/{number}-decisions.md
 ```
 
@@ -104,8 +112,8 @@ Look for the most recent AI-review comment and its `sha:`/`verdict:` marker
 (see `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md`):
 
 ```bash
-comment_body=$(gh pr view {pr} --json comments \
-  --jq '[.comments[] | select(.body | test("<!-- orc:ai-review sha:"))] | last | .body')
+comment_body=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comments {pr} \
+  | jq -r '[.[] | select(.body | test("<!-- orc:ai-review sha:"))] | last | .body')
 review_sha=$(echo "$comment_body" | grep -oP 'sha:\K[a-f0-9]+')
 review_verdict=$(echo "$comment_body" | grep -oP 'verdict:\K[A-Z]+')
 head_sha=$(git rev-parse HEAD)
@@ -126,7 +134,7 @@ head_sha=$(git rev-parse HEAD)
   `build` passes it), auto-fix safe findings and re-verify, resolve the
   rest with the user the way `build` step 10 does (when you can ask), fill
   `ai-review.md` with the post-auto-fix `git rev-parse HEAD` as the new
-  `sha:` marker, and post it via `gh pr comment` — never the PR description.
+  `sha:` marker, and post it via `gh-rest pr-comment` — never the PR description.
   Then run `changelog-writer`/docblocks and record decisions the same way
   `build` step 11 does.
   If a residual BLOCKER remains, **gate: review blocker** (commit and push
@@ -141,7 +149,7 @@ Run it when step 4 re-reviewed, or when the PR body has no
 stopped before context was posted, or a later push moved HEAD):
 
 ```bash
-gh pr view {pr} --json body --jq .body | grep -q "<!-- orc:context sha:$(git rev-parse HEAD)" \
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .body | grep -q "<!-- orc:context sha:$(git rev-parse HEAD)" \
   && echo current || echo missing
 ```
 
@@ -157,7 +165,7 @@ This mirrors `build`'s step 13 exactly — keep both in sync if either changes.
 
 **CI:**
 ```bash
-gh pr checks {pr} --watch
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr} --watch   # exit 0 pass, 1 fail, 8 pending
 ```
 If a check fails, fetch its log (`gh run view {run-id} --log-failed`) and the
 diff, invoke `ci-debugger`, and apply the fix only if it's clearly safe
@@ -170,7 +178,7 @@ procedure as `build` (commit and push what exists, comment on the issue,
 
 **Mergeability:**
 ```bash
-gh pr view {pr} --json mergeable --jq .mergeable
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .mergeable
 ```
 If `CONFLICTING`: `git fetch origin && git rebase origin/main` to surface
 markers, invoke `conflict-classifier`. Auto-resolve files it marks simple,
@@ -182,8 +190,8 @@ code.
 
 **Once CI is green and the PR is mergeable:**
 ```bash
-gh label create "status:built" -f >/dev/null 2>&1 || true
-gh issue edit {number} --remove-label "status:building,status:blocked" --add-label "status:built"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:built"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:building,status:blocked" --add-label "status:built"
 ```
 
 ### 7. Report

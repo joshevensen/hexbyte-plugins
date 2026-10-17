@@ -2,6 +2,17 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.3.2]
+
+### Fixed
+- `list`, `push`, `bump`, and `setup` no longer call GraphQL-backed `gh`
+  subcommands, which return HTTP 403 in Claude Code on the web. They use the
+  new REST-only `scripts/gh-rest` helper (a copy of the one shipped with `orc`).
+  `bump` now matches Dependabot PRs by the REST login `dependabot[bot]`
+- The access check is `gh-rest preflight`: it tests real repo access with
+  `gh api` instead of `gh auth status` (which falsely fails on the web) and
+  caches the result for 10 minutes
+
 ## [0.3.1]
 
 ### Fixed

@@ -51,4 +51,4 @@ Include FAQ planning only for pillar posts or when natural for a staple post. Om
 
 Use a YAML parser to set `status: outlined` while preserving all other metadata.
 
-Fetch the current post-list issue body, locate the row by `{nnn}`, update only its status to `outlined`, and write the body back with `gh issue edit --body-file`. Report the worktree paths to `notes.md` and `outline.md`.
+Fetch the current post-list issue body, locate the row by `{nnn}`, update only its status to `outlined`, and write the body back with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {post_list_issue} --body-file`. Report the worktree paths to `notes.md` and `outline.md`.

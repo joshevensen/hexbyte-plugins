@@ -12,6 +12,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ORC_ROOT = REPO_ROOT / "plugins" / "orc"
+PLUGINS_ROOT = REPO_ROOT / "plugins"
+HELPER = Path("scripts") / "gh-rest"
+# `gh` subcommands that use GitHub GraphQL, which Claude Code on the web blocks
+# with a 403. `gh pr diff`, `gh run …` and `gh api` (REST) are fine.
+GRAPHQL_GH = re.compile(
+    r"\bgh\s+(?:issue|pr|repo|label|project)\s+"
+    r"(?:view|list|create|edit|comment|ready|merge|checks|checkout|close|reopen|delete|status)\b"
+    r"|\bgh\s+api\s+graphql\b"
+)
 VALID_MODELS = {"haiku", "sonnet", "opus"}
 
 errors = []
@@ -97,6 +106,40 @@ def check_agent_references(skill_paths, agent_paths):
         warn(f"agent '{name}' is defined but never referenced by any skill")
 
 
+def check_no_graphql_gh():
+    """Skills, agents, templates and scripts must go through scripts/gh-rest.
+
+    gh-rest itself is exempt: it holds the only GraphQL fallbacks (used when
+    the web-only /ccr/ routes don't exist, i.e. a local checkout).
+    """
+    for path in sorted(PLUGINS_ROOT.rglob("*")):
+        if not path.is_file() or path.suffix not in {".md", ".sh", ""}:
+            continue
+        if path.name in {"CHANGELOG.md", "README.md", "gh-rest"}:
+            continue
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            if GRAPHQL_GH.search(line):
+                fail(
+                    f"{path.relative_to(REPO_ROOT)}:{lineno}: GraphQL-backed gh call "
+                    f"({GRAPHQL_GH.search(line).group(0)!r}) — use ${{CLAUDE_PLUGIN_ROOT}}/scripts/gh-rest instead"
+                )
+
+
+def check_gh_rest_copies_match():
+    """Each plugin ships its own copy of gh-rest (plugins install separately)."""
+    copies = sorted(PLUGINS_ROOT.glob(f"*/{HELPER}"))
+    if not copies:
+        fail("no scripts/gh-rest found under plugins/*")
+        return
+    reference = copies[0].read_text()
+    for path in copies[1:]:
+        if path.read_text() != reference:
+            fail(
+                f"{path.relative_to(REPO_ROOT)} differs from {copies[0].relative_to(REPO_ROOT)} — "
+                "edit one and copy it to the others"
+            )
+
+
 def check_version_changelog_sync():
     plugin_json = ORC_ROOT / ".claude-plugin" / "plugin.json"
     changelog = ORC_ROOT / "CHANGELOG.md"
@@ -153,6 +196,8 @@ def main():
     check_frontmatter_files(agent_paths, "agent")
     check_plugin_root_paths(skill_paths + agent_paths)
     check_agent_references(skill_paths, agent_paths)
+    check_no_graphql_gh()
+    check_gh_rest_copies_match()
     check_version_changelog_sync()
 
     for w in warnings:

@@ -13,7 +13,7 @@ Require `.orc/config/posts.config.json`; otherwise stop with: `Post infrastructu
 ### 2. Fetch
 
 ```bash
-gh issue view {post_list_issue} --repo {owner}/{repo} --json title,body,url
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest -R {owner}/{repo} issue-view {post_list_issue}   # JSON: title, body, url, …
 ```
 
 If the issue is missing or inaccessible, report the configured number and the GitHub error. Do not scan local post directories as a silent fallback because the issue is the canonical list.

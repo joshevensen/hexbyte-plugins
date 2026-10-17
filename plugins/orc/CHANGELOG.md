@@ -2,6 +2,29 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.13.1]
+
+### Fixed
+- GitHub now works in Claude Code on the web, where GraphQL is blocked (HTTP
+  403). Every skill and the `issue-loader` agent called GraphQL-backed `gh`
+  subcommands (`gh pr view/list/create/edit/ready/comment/checks/merge/checkout`,
+  `gh issue view/edit/create/comment`, `gh repo view`), and `respond` called
+  `gh api graphql` directly, so each run hit 403s and fell back to REST by hand.
+  They now go through one new helper, `scripts/gh-rest`, which uses the REST
+  API only. Review threads and ready-for-review use the web `/ccr/` routes and
+  fall back to GraphQL on a local checkout
+- The access check no longer relies on `gh auth status` (which falsely reports
+  an invalid token on the web). `gh-rest preflight` tests real access to the
+  repo with `gh api` and caches the result for 10 minutes, so repeated calls
+  across a session cost nothing
+- `walkthru`'s `allowed-tools` list the `gh-rest` commands it uses instead of
+  the GraphQL-backed `gh` subcommands
+
+### Added
+- `scripts/gh-rest` — the REST-only GitHub helper described above. Lint now
+  fails on any GraphQL-backed `gh` call in a skill, agent or template, and on
+  copies of `gh-rest` that drift between plugins
+
 ## [0.13.0]
 
 ### Added

@@ -17,7 +17,7 @@ to live in both `create` and the old feature-planning step now lives here alone.
 resolution exactly as normal — `spec-writer` only writes to the local
 `.orc/tmp/{number}-spec.md` scratch file, which is safe to leave in place for
 inspection (skip the `rm` in step 5 too, so you can read it after). Skip every
-`gh issue edit`/`gh issue comment` call in steps 1 and 5. End with:
+`gh-rest issue-edit`/`issue-comment` call in steps 1 and 5. End with:
 ```
 DRY RUN — spec written to .orc/tmp/{number}-spec.md, not posted.
 {Open Questions: None. — would set status:ready | still open: {what's open}}
@@ -28,6 +28,15 @@ Re-run without --dry-run to post it.
 
 ### 1. Load the issue
 
+Check GitHub access once, up front (cached, so repeat calls are free). If it
+fails, stop and show its message. GitHub calls in this skill go through
+`gh-rest` (REST only), never `gh issue`/`gh pr`/`gh repo` subcommands — those
+use GraphQL, which Claude Code on the web blocks with a 403.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight
+```
+
 Require an issue number (`/orc:plan {number}`). Invoke `issue-loader` with it.
 Use the returned title, body, labels, and any existing spec comment.
 
@@ -37,10 +46,9 @@ prior run has already made them, but `--add-label` 404s on a label that's
 never existed in the repo at all:
 
 ```bash
-gh label create "status:draft" -f >/dev/null 2>&1 || true
-gh label create "status:ready" -f >/dev/null 2>&1 || true
-gh issue edit {number} --remove-label "status:ready" --add-label "status:draft" 2>/dev/null || \
-  gh issue edit {number} --add-label "status:draft"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:draft"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:ready"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:ready" --add-label "status:draft"
 ```
 
 ### 2. Research the codebase
@@ -92,14 +100,14 @@ outcome. This is the gate — the same one `build` re-checks. Do not weaken it.
 ### 5. Post the spec and set status
 
 ```bash
-gh issue comment {number} --body-file .orc/tmp/{number}-spec.md
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-comment {number} --body-file .orc/tmp/{number}-spec.md
 rm .orc/tmp/{number}-spec.md
 ```
 
 - **Open Questions is `None.` and every criterion is verifiable**:
   ```bash
-  gh label create "status:ready" -f >/dev/null 2>&1 || true
-  gh issue edit {number} --remove-label status:draft --add-label status:ready
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:ready"
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label status:draft --add-label status:ready
   ```
 - **Anything still open** → leave `status:draft` and tell the user what remains.
 

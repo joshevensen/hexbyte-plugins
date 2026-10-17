@@ -25,9 +25,9 @@ This skill hardcodes nothing about any one project.
 verification, and review exactly as normal, including local git — the branch
 is created and each wave is committed locally, so `git log` / `git diff
 origin/main...HEAD` show real, inspectable output. It stops being "real" at
-the network boundary: skip the `gh issue edit` label changes in steps 5 and
+the network boundary: skip the `gh-rest issue-edit` label changes in steps 5 and
 13, skip every `git push` (steps 8, 10, 11 — step 5 itself never pushes, it
-only branches and opens the PR), and skip every `gh pr` and `gh api` call in
+only branches and opens the PR), and skip every `gh-rest pr-*` and `gh api` call in
 steps 5, 9, 10, and 12 (create, edit, ready, comment, review) — print what
 each would have sent instead. Step 12 still runs `pr-context-writer`, so its
 body and comments can be inspected. Step 13 (CI watch, mergeability, the label
@@ -72,8 +72,8 @@ Referenced throughout as "**gate: {name}**". When a gate trips:
 3. Create the label defensively first (idempotent — a no-op if it already
    exists), then apply it:
    ```bash
-   gh label create "status:blocked" -f >/dev/null 2>&1 || true
-   gh issue edit {number} --remove-label "status:building" --add-label "status:blocked"
+   ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:blocked"
+   ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:building" --add-label "status:blocked"
    ```
 4. Stop.
 
@@ -113,6 +113,16 @@ How to ask (the persona in `working-style.md`):
 
 Require an issue number (`^\d+$`) as `{number}`. If none is given, stop and ask
 which issue to build.
+
+Check GitHub access once, up front (cached, so repeat calls are free):
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight
+```
+
+If it fails, stop and show its message. GitHub calls in this skill go through
+`gh-rest` (REST only), never `gh issue`/`gh pr`/`gh repo` subcommands — those
+use GraphQL, which Claude Code on the web blocks with a 403.
 
 ### 1. Load
 
@@ -164,8 +174,8 @@ Always start from a clean base so reruns are deterministic:
 ```bash
 git fetch origin main
 git switch -C issue/{number}-{slug} origin/main
-gh label create "status:building" -f >/dev/null 2>&1 || true
-gh issue edit {number} --remove-label "status:ready,status:blocked" --add-label "status:building"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:building"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:ready,status:blocked" --add-label "status:building"
 ```
 
 `switch -C` force-recreates the branch even if a previous run already pushed
@@ -176,22 +186,21 @@ Open a draft PR immediately so the diff is visible as waves land, or reuse one
 left over from a previous run of this same issue:
 
 ```bash
-existing=$(gh pr list --head "issue/{number}-{slug}" --state open --json number,isDraft --jq '.[0]')
+existing=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find "issue/{number}-{slug}" open)   # {number,url,state,draft} or empty
 ```
 
 - **No open PR** — create one, in draft, with a placeholder body (the real
   body goes in at step 12):
   ```bash
-  pr_url=$(gh pr create --draft --base main --title "{title}" --body "🚧 Build in progress. Closes #{number}.")
-  pr=$(basename "$pr_url")
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --draft --base main --title "{title}" \
+    --body "🚧 Build in progress. Closes #{number}."   # prints {number,url}
   ```
-  `gh pr create` has no `--json` — it prints only the URL, so read `{pr}` back
-  from that.
+  `{pr}` is the `number` it prints.
 - **An open PR already exists** — reuse it (`pr` = its number). If it isn't
   already draft, put it back — its branch is about to be wiped and redone, so
   its state has to match:
   ```bash
-  gh pr ready {pr} --undo 2>/dev/null || true
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-ready {pr} --undo 2>/dev/null || true
   ```
 
 Post the PR URL as an issue comment.
@@ -299,8 +308,8 @@ Implementation done — review context posts after AI review. Closes #{number}.
 ```
 
 ```bash
-gh pr edit {pr} --title "{title}" --body-file .orc/tmp/{number}-pr-body.md
-gh pr ready {pr}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-edit {pr} --title "{title}" --body-file .orc/tmp/{number}-pr-body.md
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-ready {pr}
 ```
 
 Marking the PR ready for review **here** — not after review passes — is the
@@ -361,7 +370,7 @@ template's `sha:` marker, and post it as a **PR comment** — never fold review
 content into the PR description:
 
 ```bash
-gh pr comment {pr} --body-file {filled-template}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comment {pr} --body-file {filled-template}
 ```
 
 The `sha:`/`verdict:` marker line is load-bearing: it's how `/orc:resume`
@@ -401,15 +410,13 @@ rather than duplicates it. Delete only marker comments nobody has replied to —
 a thread with a reply is a conversation, and stays:
 
 ```bash
-owner=$(gh repo view --json owner --jq .owner.login)
-repo=$(gh repo view --json name --jq .name)
-gh api --paginate repos/$owner/$repo/pulls/{pr}/comments --jq '.[]' \
-  | jq -s . > .orc/tmp/{number}-comments.json
+nwo=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest repo)   # owner/repo
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-review-comments {pr} > .orc/tmp/{number}-comments.json
 jq -r '[.[] | select(.in_reply_to_id) | .in_reply_to_id] as $replied
   | .[] | select(.body | startswith("<!-- orc:context -->"))
   | select(.id as $id | $replied | index($id) | not) | .id' \
   .orc/tmp/{number}-comments.json \
-  | xargs -r -I % gh api -X DELETE repos/$owner/$repo/pulls/comments/%
+  | xargs -r -I % gh api -X DELETE repos/$nwo/pulls/comments/%
 ```
 
 Invoke `pr-context-writer` with the issue number and body, the spec, the
@@ -423,15 +430,15 @@ doesn't take file-level comments). The PR body's `<!-- orc:context sha:… -->`
 first line is what marks context as posted — not the review:
 
 ```bash
-gh pr edit {pr} --body-file .orc/tmp/{number}-pr-body.md
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-edit {pr} --body-file .orc/tmp/{number}-pr-body.md
 if jq -e '.comments | length > 0' .orc/tmp/{number}-context.json >/dev/null; then
   jq '{commit_id, event, comments}' .orc/tmp/{number}-context.json \
-    | gh api -X POST repos/$owner/$repo/pulls/{pr}/reviews --input -
+    | gh api -X POST repos/$nwo/pulls/{pr}/reviews --input -
 fi
 jq -c --arg sha "$(git rev-parse HEAD)" \
   '.file_comments[] | . + {commit_id: $sha, subject_type: "file"}' \
   .orc/tmp/{number}-context.json \
-  | while read -r c; do echo "$c" | gh api -X POST repos/$owner/$repo/pulls/{pr}/comments --input -; done
+  | while read -r c; do echo "$c" | gh api -X POST repos/$nwo/pulls/{pr}/comments --input -; done
 rm .orc/tmp/{number}-comments.json .orc/tmp/{number}-pr-body.md .orc/tmp/{number}-context.json
 ```
 
@@ -451,7 +458,7 @@ deliberately leave to it.
 
 **CI:**
 ```bash
-gh pr checks {pr} --watch
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr} --watch   # exit 0 pass, 1 fail, 8 pending
 ```
 If a check fails, fetch its log (`gh run view {run-id} --log-failed`) and the
 diff, invoke `ci-debugger`, and apply the fix only if it's clearly safe (missing
@@ -461,7 +468,7 @@ attempt, **gate: gate/verify** with the failing check and diagnosis.
 
 **Mergeability:**
 ```bash
-gh pr view {pr} --json mergeable --jq .mergeable
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .mergeable
 ```
 If `CONFLICTING`: `git fetch origin && git rebase origin/main` to surface
 markers, invoke `conflict-classifier`. Auto-resolve files it marks simple,
@@ -474,8 +481,8 @@ code.
 **Once CI is green and the PR is mergeable**, the issue is genuinely built —
 only now flip the label:
 ```bash
-gh label create "status:built" -f >/dev/null 2>&1 || true
-gh issue edit {number} --remove-label "status:building" --add-label "status:built"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:built"
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:building" --add-label "status:built"
 ```
 Setting this any earlier risks a gate firing after `status:building` has
 already been replaced — the gate procedure's label swap would then have

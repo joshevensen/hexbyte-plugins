@@ -75,11 +75,11 @@ rather than guessing:
 Fetch the description, metadata, and diff:
 
 ```bash
-gh pr view {pr} --json number,title,body,author,state,files --jq '.'
-gh pr diff {pr}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr}   # number, title, body, author, state, …
+gh pr diff {pr}      # REST-backed, fine on the web
 ```
 
-If `gh pr view` fails (unknown PR, `gh` missing, not authenticated), report
+If `gh-rest pr-view` fails (unknown PR, `gh` missing, no access), report
 the error verbatim and stop. For a large diff, read the file list first and
 summarize by area rather than truncating silently.
 

@@ -33,7 +33,7 @@ Preserve all other metadata. Commit all final post changes on the post branch wi
 
 ### 4. Update the post-list issue
 
-Fetch the issue body immediately before editing. Locate the row by `{nnn}`, set Status to `published`, and set Published to the same `YYYY-MM-DD`. Preserve all other rows and sections. Update through a temporary file with `gh issue edit --body-file`.
+Fetch the issue body immediately before editing. Locate the row by `{nnn}`, set Status to `published`, and set Published to the same `YYYY-MM-DD`. Preserve all other rows and sections. Update through a temporary file with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {post_list_issue} --body-file`.
 
 If this fails, stop before merging and report that the branch is ready but the index was not updated.
 
