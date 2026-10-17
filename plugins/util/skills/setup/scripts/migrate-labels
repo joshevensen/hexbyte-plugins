@@ -2,7 +2,8 @@
 # Usage: migrate-labels <owner/repo> [--dry-run]
 # Maps known pre-skill labels to managed equivalents and drops known-useless labels.
 # Prints any unrecognized labels to stderr for manual review.
-# --dry-run: print what would change; no gh issue edit calls are made.
+# --dry-run: print what would change; no write calls are made.
+# Uses the REST API only (gh api): GraphQL is blocked in Claude Code on the web.
 set -euo pipefail
 
 REPO="$1"
@@ -63,8 +64,12 @@ lookup() {
   return 1
 }
 
-ISSUES_JSON=$(gh issue list --repo "$REPO" --state open --limit 500 \
-  --json number,labels)
+urlencode() { jq -rn --arg s "$1" '$s | @uri'; }
+
+# The issues endpoint also returns PRs; drop entries carrying a pull_request key.
+ISSUES_TSV=$(gh api --paginate "repos/$REPO/issues?state=open&per_page=100" --jq \
+  '.[] | select(has("pull_request") | not)
+       | [(.number | tostring), (.labels | map(.name) | join(","))] | @tsv')
 
 UPDATED=0
 UNKNOWN_LABELS=()
@@ -73,8 +78,8 @@ while IFS=$'\t' read -r NUM LABEL_CSV; do
   [[ -z "$NUM" ]] && continue
 
   IFS=',' read -ra CURRENT_LABELS <<< "$LABEL_CSV"
-  ADD_ARGS=()
-  REMOVE_ARGS=()
+  ADD=()
+  REMOVE=()
 
   for label in "${CURRENT_LABELS[@]}"; do
     [[ -z "$label" ]] && continue
@@ -82,26 +87,34 @@ while IFS=$'\t' read -r NUM LABEL_CSV; do
 
     target=""
     if target=$(lookup "$label"); then
-      REMOVE_ARGS+=(--remove-label "$label")
+      REMOVE+=("$label")
       if [[ -n "$target" ]]; then
         already=0
         for l in "${CURRENT_LABELS[@]}"; do [[ "$l" == "$target" ]] && already=1 && break; done
-        [[ "$already" -eq 0 ]] && ADD_ARGS+=(--add-label "$target")
+        [[ "$already" -eq 0 ]] && ADD+=("$target")
       fi
     else
       UNKNOWN_LABELS+=("$label (issue #$NUM)")
     fi
   done
 
-  if [[ ${#ADD_ARGS[@]} -gt 0 || ${#REMOVE_ARGS[@]} -gt 0 ]]; then
+  if [[ ${#ADD[@]} -gt 0 || ${#REMOVE[@]} -gt 0 ]]; then
     if [[ -n "$DRY_RUN" ]]; then
-      echo "Would update #$NUM: ${ADD_ARGS[*]-} ${REMOVE_ARGS[*]-}" >&2
+      echo "Would update #$NUM: add [${ADD[*]-}] remove [${REMOVE[*]-}]" >&2
     else
-      gh issue edit "$NUM" --repo "$REPO" "${ADD_ARGS[@]}" "${REMOVE_ARGS[@]}"
+      if [[ ${#ADD[@]} -gt 0 ]]; then
+        add_args=()
+        for l in "${ADD[@]}"; do add_args+=(-f "labels[]=$l"); done
+        gh api -X POST "repos/$REPO/issues/$NUM/labels" "${add_args[@]}" >/dev/null
+      fi
+      for l in "${REMOVE[@]-}"; do
+        [[ -z "$l" ]] && continue
+        gh api -X DELETE "repos/$REPO/issues/$NUM/labels/$(urlencode "$l")" >/dev/null
+      done
     fi
     UPDATED=$((UPDATED + 1))
   fi
-done < <(echo "$ISSUES_JSON" | jq -r '.[] | [(.number | tostring), (.labels | map(.name) | join(","))] | join("\t")')
+done <<< "$ISSUES_TSV"
 
 echo "Label migration${DRY_RUN:+ (dry run)}: $UPDATED issues ${DRY_RUN:+would be }updated" >&2
 

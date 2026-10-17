@@ -22,8 +22,7 @@ reliably done as one command than a manual checklist — most importantly the
 — `CLAUDE.md` sections, the PR template, `CHANGELOG.md`, `dependabot.yml`,
 `.orc/` — since previewing exactly those files is the point, and none of it
 is pushed. Pass `--dry-run` through to both label scripts in step 2 (they
-support it directly and print what would change instead of calling `gh
-label`). Skip step 8 entirely — nothing gets committed, pushed, or handed to
+support it directly and print what would change instead of writing labels). Skip step 8 entirely — nothing gets committed, pushed, or handed to
 `/util:push`. End with:
 ```
 DRY RUN — files written for review: {list}. Labels: see step 2 output above.
@@ -41,15 +40,20 @@ or accept an `owner/repo` argument.
 
 ```bash
 gh --version
-gh auth status
+gh api repos/{owner}/{repo} --jq .full_name
 ```
+
+This tests real access to the repo rather than `gh auth status`, which reports
+a false failure in web sessions (the proxy authenticates API calls, so
+`GH_TOKEN` looks invalid even though requests work). Use REST (`gh api`) only:
+GraphQL (`gh issue/pr/label ...`) is blocked in web sessions with a 403.
 
 If either fails, stop with instructions:
 - **Local:** install from https://cli.github.com, or run `gh auth login`.
-- **Claude Code on the web:** `gh` isn't preinstalled and must be added to the
-  environment's **Setup script** — see the web-install section of the orc README.
-  It auto-authenticates via the `GH_TOKEN` web environments already expose, so no
-  `gh auth login` is needed once installed.
+- **Claude Code on the web:** if `gh` is missing, add it to the environment's
+  **Setup script** — see the web-install section of the orc README. No
+  `gh auth login` is needed; if the `gh api` call fails with a 403/404, the
+  environment lacks access to this repo — fix that, not `gh` auth.
 
 ### 2. Labels
 
@@ -68,7 +72,8 @@ clean up unmanaged labels, run `--prune` then, as its own deliberate step —
 never bundle it into a routine setup run.
 
 If migration reports unrecognized labels, reason about intent and apply
-`gh issue edit` manually.
+`gh api -X POST repos/{owner}/{repo}/issues/{n}/labels` (and `-X DELETE .../labels/{name}`)
+manually.
 
 **Completeness check:** re-fetch open issues; any missing a `status:*` label gets
 one inferred and confirmed with the user before applying.
