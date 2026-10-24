@@ -318,10 +318,12 @@ touching anything:
 Never weaken an assertion just to make it pass. If a failure can't be
 classified from the spec, **gate: ambiguity**.
 
-Once the tests pass, **prove each one can fail** — a passing test that can
-never fail is worse than none, because it reads as coverage:
+Once the tests pass, prove two things: **every test can fail**, and **every
+behavior the change adds would be caught if it broke**. A test that can never
+fail is worse than none, because it reads as coverage; a gap is a bug that will
+ship green.
 
-1. **Red against base.** Run the same tests against `origin/main`'s code with
+1. **Red against base.** Run the new tests against `origin/main`'s code with
    the new test files copied in (`git worktree add .orc/tmp/{number}-base
    origin/main`, copy the test files, run the focused command there, then
    `git worktree remove --force` it). Every test not marked `guards existing`
@@ -330,21 +332,46 @@ never fail is worse than none, because it reads as coverage:
    test's `catches:` line whether its assertion would still bite. A test that
    passes on base and isn't guarding existing behavior tests nothing: rewrite
    it to assert what the change adds, or delete it.
-2. **Mutation spot-check.** The implementation is committed, so this is safe.
-   For each acceptance criterion, make one small, realistic break in the code
-   that satisfies it — the bug its test's `catches:` line names, or an inverted
-   condition, an off-by-one, a dropped branch — run that criterion's tests,
-   and confirm at least one fails. Restore with `git checkout -- {file}` after
-   each. A criterion whose tests survive the break has no real test: strengthen
-   the assertion, then repeat once.
-3. **Read what's left.** Delete any remaining test that matches a pattern
+2. **Behavior list.** Every behavior on `test-writer`'s list must map to a test
+   or to a stated reason it isn't tested. An unmapped behavior is a gap.
+3. **Changed-line coverage.** If the repo already has a coverage tool set up
+   (`pytest-cov`, PHPUnit/Pest coverage with a driver, `c8`/Istanbul/Vitest
+   coverage, JaCoCo, `go test -cover`, …), run the focused tests with coverage
+   and list the **changed lines** (from `git diff origin/main...HEAD`) they
+   never execute. Never chase a whole-repo percentage, and don't install a
+   tool to get this — skip the step if none is set up.
+4. **Break the code.** The implementation is committed, so this is safe.
+   - If `CLAUDE.md` has a **`## Mutation Testing`** section, run its command
+     scoped to the changed source files; every surviving mutant is a gap.
+   - Otherwise plant breaks by hand. For **each changed function or method
+     with logic** (skip pure wiring, getters, and declarations), make up to
+     **five** small, realistic breaks, one at a time, starting with the logic
+     the spec's Key Logic calls out: invert a condition, shift a boundary
+     (`<` ↔ `<=`, off-by-one), delete a branch or early return, return a wrong
+     or empty value, drop a side effect (a write, an event, a call), skip a
+     validation. Run the tests covering that file after each break, record
+     whether any failed, and restore with `git checkout -- {file}` before the
+     next. A break no test catches is a gap.
+   - A break that changes nothing a caller could observe (an equivalent
+     mutant) isn't a gap: log `- test: {file}:{line} — break has no observable
+     effect — {why}` and move on. Don't write a test for it.
+5. **Fill the gaps.** Invoke `test-writer` in `gap-fill` mode with the
+   surviving breaks, unmapped behaviors, and uncovered lines. Its new tests go
+   through steps 1 and 4 too: each must fail on base (unless it guards existing
+   behavior) and must catch the break it was written for. Any question it
+   returns is a **gate: ambiguity**. Run one gap-fill round, then re-check;
+   gaps still open after a second round go to step 10 as `WARNING`s ("untested:
+   {behavior}") instead of looping.
+6. **Read what's left.** Delete any remaining test that matches a pattern
    `test-writer` forbids (tautology, existence-only, over-mocked, framework,
    unreviewed snapshot, restated implementation), even if it passed the checks
-   above.
+   above — then re-run step 4 on the behaviors it covered, since deleting it
+   may reopen a gap.
 
 Log each deleted or rewritten test as `- test: {file}::{name} — {deleted |
-rewritten} — because {it passed on base | survived mutation | pattern}`. Then
-run focused verification on what changed, and commit and push the tests
+rewritten} — because {it passed on base | survived a break | pattern}`, and the
+totals as `- coverage: {n} breaks planted, {n} caught, {n} equivalent, {n} open`.
+Then run focused verification on what changed, and commit and push the tests
 together with any fixes (`test(#{number}): acceptance tests`).
 
 ### 9. Ready for review

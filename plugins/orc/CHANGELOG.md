@@ -35,6 +35,15 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
   realistic break per acceptance criterion, deleting or rewriting any test
   that doesn't catch it. `review-quality` flags tests that can't fail and
   counts them as no coverage
+- Behavioral coverage in `build` step 8b. `test-writer` lists every behavior
+  the spec requires and maps each to a test or a stated reason. After
+  implementation, `build` plants up to five realistic breaks per changed
+  function (or runs the command in an optional `## Mutation Testing` section
+  of `CLAUDE.md`), measures changed-line coverage when the repo already has a
+  coverage tool, and sends surviving breaks and uncovered lines back to
+  `test-writer` in a new `gap-fill` mode. Gap-fill tests pass the same
+  must-fail checks; gaps still open after two rounds surface as review
+  `WARNING`s
 
 ## [0.13.1]
 
