@@ -27,6 +27,14 @@ Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 - `spec-critic` agent — audits the drafted spec in `plan` (new step 3b) for
   phantom paths, unverifiable criteria, inconsistencies, and missed edge cases
   before the user sees it
+- Guardrails against tests that can't fail. `test-writer` must name the bug
+  each test catches and is barred from tautologies, existence-only checks,
+  over-mocked tests, framework tests, unreviewed snapshots, and restated
+  implementation. `build` step 8b runs each new test against `origin/main`
+  (it must fail there unless marked `guards existing`) and spot-checks one
+  realistic break per acceptance criterion, deleting or rewriting any test
+  that doesn't catch it. `review-quality` flags tests that can't fail and
+  counts them as no coverage
 
 ## [0.13.1]
 

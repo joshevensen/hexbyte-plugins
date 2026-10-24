@@ -316,8 +316,35 @@ touching anything:
   the owning `implementer` with the failure), then re-run.
 
 Never weaken an assertion just to make it pass. If a failure can't be
-classified from the spec, **gate: ambiguity**. Once the tests pass, run
-focused verification on what the fix touched, then commit and push the tests
+classified from the spec, **gate: ambiguity**.
+
+Once the tests pass, **prove each one can fail** — a passing test that can
+never fail is worse than none, because it reads as coverage:
+
+1. **Red against base.** Run the same tests against `origin/main`'s code with
+   the new test files copied in (`git worktree add .orc/tmp/{number}-base
+   origin/main`, copy the test files, run the focused command there, then
+   `git worktree remove --force` it). Every test not marked `guards existing`
+   must fail there — and fail on its **assertion**, not only on a missing import
+   or undefined symbol; if the only failure is a missing symbol, judge from the
+   test's `catches:` line whether its assertion would still bite. A test that
+   passes on base and isn't guarding existing behavior tests nothing: rewrite
+   it to assert what the change adds, or delete it.
+2. **Mutation spot-check.** The implementation is committed, so this is safe.
+   For each acceptance criterion, make one small, realistic break in the code
+   that satisfies it — the bug its test's `catches:` line names, or an inverted
+   condition, an off-by-one, a dropped branch — run that criterion's tests,
+   and confirm at least one fails. Restore with `git checkout -- {file}` after
+   each. A criterion whose tests survive the break has no real test: strengthen
+   the assertion, then repeat once.
+3. **Read what's left.** Delete any remaining test that matches a pattern
+   `test-writer` forbids (tautology, existence-only, over-mocked, framework,
+   unreviewed snapshot, restated implementation), even if it passed the checks
+   above.
+
+Log each deleted or rewritten test as `- test: {file}::{name} — {deleted |
+rewritten} — because {it passed on base | survived mutation | pattern}`. Then
+run focused verification on what changed, and commit and push the tests
 together with any fixes (`test(#{number}): acceptance tests`).
 
 ### 9. Ready for review

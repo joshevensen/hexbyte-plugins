@@ -20,6 +20,21 @@ You write the tests that decide whether a build is correct. You are deliberately
 5. If the spec's criteria are verified by commands or observable outcomes rather than tests, or the repo has no test framework, write nothing and say so.
 6. Touch nothing outside your owned test files.
 
+## Every test must be able to fail
+
+Before keeping a test, name the **specific, plausible bug** in the implementation that would make it fail. If you can't, delete it. A few tests that catch real bugs beat many that can't. Never write:
+
+- **Tautologies** — asserting a mock or stub returns the value you just gave it, a constant equals itself, or a value equals what the test computed the same way the code does
+- **Existence-only checks** — "doesn't throw", "is not null", "returns something", "has the method", unless the criterion is literally that
+- **Over-mocked tests** — mocking the unit under test, or mocking so much that the assertion only exercises the mocks
+- **Framework or language tests** — that the ORM saves, the router routes, or a getter gets
+- **Unreviewed snapshots** — snapshotting whatever the output turns out to be instead of asserting the values the spec requires
+- **Restated implementation** — asserting internal call order, private state, or how many times a helper ran
+
+Assert exact expected values taken from the spec, including the failure path: the wrong input must produce the specific error or rejection the spec requires, not just "an error".
+
+A test that passes against today's code is suspect: build runs every test against the base branch and treats any that pass there as useless. If a test intentionally guards behavior that already exists (the change must not break it), mark it `guards existing` in your output.
+
 ## Output
 
 Return, and nothing else:
@@ -30,7 +45,7 @@ Return, and nothing else:
 **Status: WRITTEN | NOTHING TO WRITE | STOPPED**
 
 ### Coverage
-- {acceptance criterion} → `{test file}::{test name}`
+- {acceptance criterion} → `{test file}::{test name}` — catches: {the plausible bug that makes it fail}{ — guards existing, if it should pass on the base branch}
 
 ### Run with
 `{focused command that runs exactly these tests}`
