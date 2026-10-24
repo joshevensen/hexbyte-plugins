@@ -359,9 +359,9 @@ ship green.
    surviving breaks, unmapped behaviors, and uncovered lines. Its new tests go
    through steps 1 and 4 too: each must fail on base (unless it guards existing
    behavior) and must catch the break it was written for. Any question it
-   returns is a **gate: ambiguity**. Run one gap-fill round, then re-check;
-   gaps still open after a second round go to step 10 as `WARNING`s ("untested:
-   {behavior}") instead of looping.
+   returns is a **gate: ambiguity**. Re-check after each round, and run at most
+   two rounds; gaps still open after the second go to step 10 as `WARNING`s
+   ("untested: {behavior}") instead of looping.
 6. **Read what's left.** Delete any remaining test that matches a pattern
    `test-writer` forbids (tautology, existence-only, over-mocked, framework,
    unreviewed snapshot, restated implementation), even if it passed the checks
