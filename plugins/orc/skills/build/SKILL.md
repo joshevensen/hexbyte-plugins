@@ -342,7 +342,9 @@ ship green.
    tool to get this — skip the step if none is set up.
 4. **Break the code.** The implementation is committed, so this is safe.
    - If `CLAUDE.md` has a **`## Mutation Testing`** section, run its command
-     scoped to the changed source files; every surviving mutant is a gap.
+     scoped to the changed source files — or the classes in them, if the
+     section says the tool scopes by class; every surviving mutant (untested or
+     uncovered) is a gap.
    - Otherwise plant breaks by hand. For **each changed function or method
      with logic** (skip pure wiring, getters, and declarations), make up to
      **five** small, realistic breaks, one at a time, starting with the logic
