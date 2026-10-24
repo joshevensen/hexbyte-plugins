@@ -1,7 +1,7 @@
 ---
 name: build
 description: Take a specced issue from spec to open PR — decompose into a dependency-ordered task list, execute it (parallel subagents where tasks are independent), verify with focused tests, AI-review, and open the PR. Never merges. Invoke as /orc:build {number}.
-model: sonnet
+model: opus
 ---
 
 Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
@@ -227,14 +227,25 @@ write the same file concurrently.
 
 For each wave, dispatch its tasks:
 
-- **Parallel** independent tasks via subagents (the Task/general-purpose agent),
-  one per task, launched together. Give each subagent the spec, its specific
-  task, the exact files it owns, and an instruction to touch nothing outside
-  them.
-- **Match the model to the task's complexity:** dispatch mechanical or
-  repetitive edits (rename, boilerplate, config) with a cheaper/faster model, and
-  logic-heavy or design-sensitive work with a stronger model. Set the model per
-  subagent at dispatch.
+- **Parallel** independent tasks via subagents: invoke `implementer` once per
+  task, launched together. Give each the spec, its specific task, the exact files it
+  owns, the focused verification command, and any `resolved.md` rules that
+  apply. It touches nothing outside its files and reports its decisions back
+  for you to record.
+- **Choose each implementer's model by explicit rule**, set at dispatch (the
+  agent defaults to `opus`). Downgrade to `sonnet` only when the task is
+  *purely mechanical* — a rename, boilerplate, config, or copying an existing
+  pattern to a new file — **and** touches none of: auth or permissions, data
+  migrations or schema, shared or public interfaces, concurrency, money, or
+  anything the spec's Key Logic calls out. Everything else stays on `opus`.
+  When unsure, stay on `opus`.
+- **Write the acceptance tests in parallel.** In wave 1, alongside the
+  implementers, invoke `test-writer` with the spec, the repo's test locations
+  and commands from `CLAUDE.md`, and the test files it owns. It writes tests
+  from the spec **without reading the implementation**. Skip it when the spec's
+  criteria are all verified by commands or observable outcomes rather than
+  tests, or the repo has no test framework. Implementers don't write these
+  tests; leave the test-writer's files unstaged until the tests pass (below).
 - **No guessing.** If a task is ambiguous, incomplete, or conflicts with the
   codebase, stop that work and **gate: ambiguity** with the exact question and
   the options you see. When you can ask, a stopped task reports its question
@@ -291,6 +302,24 @@ git commit -m "feat(#{number}): {wave summary}"
 git push
 ```
 
+### 8b. Acceptance tests
+
+After the last wave, if `test-writer` wrote tests, run them with the focused
+command it returned. Each failure is one of two things — find out which before
+touching anything:
+
+- **The test contradicts the spec** (it asserts something the spec doesn't say,
+  or relied on an interface the spec doesn't define — check its Assumptions
+  against the implementation): fix the test, and log `- test: {file} — {what
+  changed} — because {reason}`.
+- **The implementation misses the spec**: fix the implementation (re-dispatch
+  the owning `implementer` with the failure), then re-run.
+
+Never weaken an assertion just to make it pass. If a failure can't be
+classified from the spec, **gate: ambiguity**. Once the tests pass, run
+focused verification on what the fix touched, then commit and push the tests
+together with any fixes (`test(#{number}): acceptance tests`).
+
 ### 9. Ready for review
 
 All waves are implemented, verified, and pushed. Mark the PR ready and stash
@@ -336,6 +365,18 @@ Each review agent tags findings `BLOCKER`, `WARNING`, or `NOTE`.
 `deploy-risk-scanner` returns a risk level — treat `HIGH` as a `BLOCKER`, `low`
 as a `NOTE`. Then run `/code-review` over the same diff as a sixth, independent
 pass; if it isn't available here, note that and continue with the five agents.
+
+**Verify every BLOCKER and WARNING before anyone acts on it.** Invoke
+`finding-verifier` once per finding, all in parallel, passing the finding, the
+spec, the decision log, and the diff. Then:
+
+- **REFUTED** — drop it. Log `- review: {finding} — refuted: {evidence}`.
+- **CONFIRMED** — keep it, at the verifier's severity.
+- **UNCERTAIN** — keep it, and say so when you ask.
+
+Only surviving findings go to auto-fix and to the user. `deploy-risk-scanner`'s
+`HIGH` is exempt — a deploy risk is never refuted away; it's confirmed or
+asked about.
 
 **Auto-fix the safe ones** — lint, missing import, type error, obvious typo,
 dead code the diff introduced. Never auto-fix anything that changes behavior or

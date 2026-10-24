@@ -1,7 +1,7 @@
 ---
 name: do
 description: Run the full orc pipeline — create, plan, build — for one simple issue in a single pass, skipping the separate handoff between stages. For work small enough that three commands would be pure overhead. Invoke as /orc:do {description}.
-model: sonnet
+model: opus
 ---
 
 Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.

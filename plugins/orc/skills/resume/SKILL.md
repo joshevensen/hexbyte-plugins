@@ -131,7 +131,9 @@ head_sha=$(git rev-parse HEAD)
   mirrors `build`'s steps 10-11 exactly, keep both in sync if either changes:
   run all five review agents plus `/code-review` in parallel against
   `git diff origin/main...HEAD` (passing the decision log from step 3 where
-  `build` passes it), auto-fix safe findings and re-verify, resolve the
+  `build` passes it), run `finding-verifier` on every BLOCKER and WARNING and
+  drop the refuted ones as `build` step 10 does, auto-fix safe findings and
+  re-verify, resolve the
   rest with the user the way `build` step 10 does (when you can ask), fill
   `ai-review.md` with the post-auto-fix `git rev-parse HEAD` as the new
   `sha:` marker, and post it via `gh-rest pr-comment` — never the PR description.
