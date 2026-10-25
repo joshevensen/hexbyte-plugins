@@ -350,7 +350,13 @@ ship green.
    - If `CLAUDE.md` has a **`## Mutation Testing`** section, run its command
      scoped to the changed source files — or the classes in them, if the
      section says the tool scopes by class; every surviving mutant (untested or
-     uncovered) is a gap.
+     uncovered) is a gap. If the section says the command must end with a test
+     path, take it from the tests this build added or changed, not from
+     guessing at class names. The new tests aren't committed yet, so combine
+     `git diff --name-only origin/main` with `git ls-files --others
+     --exclude-standard`. If the section allows only one path, use the one
+     directory containing them all. A non-zero exit with no report is a failed
+     run, not "no survivors": record it and treat the behavior as unmeasured.
    - Otherwise plant breaks by hand. For **each changed function or method
      with logic** (skip pure wiring, getters, and declarations), make up to
      **five** small, realistic breaks, one at a time, starting with the logic
