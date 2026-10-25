@@ -2,6 +2,14 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.14.1]
+
+### Fixed
+- `build` step 8b now says where a mutation-testing command's required test
+  path comes from (the tests the build added or changed, including uncommitted
+  ones, not class-name guesses), and treats a non-zero exit with no report as
+  a failed run rather than "no survivors"
+
 ## [0.14.0]
 
 ### Changed
