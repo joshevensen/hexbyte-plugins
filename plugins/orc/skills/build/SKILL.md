@@ -1,7 +1,7 @@
 ---
 name: build
 description: Take a specced issue from spec to open PR — decompose into a dependency-ordered task list, execute it (parallel subagents where tasks are independent), verify with focused tests, AI-review, and open the PR. Never merges. Invoke as /orc:build {number}.
-model: sonnet
+model: opus
 ---
 
 Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and how you word what you say.
@@ -227,14 +227,25 @@ write the same file concurrently.
 
 For each wave, dispatch its tasks:
 
-- **Parallel** independent tasks via subagents (the Task/general-purpose agent),
-  one per task, launched together. Give each subagent the spec, its specific
-  task, the exact files it owns, and an instruction to touch nothing outside
-  them.
-- **Match the model to the task's complexity:** dispatch mechanical or
-  repetitive edits (rename, boilerplate, config) with a cheaper/faster model, and
-  logic-heavy or design-sensitive work with a stronger model. Set the model per
-  subagent at dispatch.
+- **Parallel** independent tasks via subagents: invoke `implementer` once per
+  task, launched together. Give each the spec, its specific task, the exact files it
+  owns, the focused verification command, and any `resolved.md` rules that
+  apply. It touches nothing outside its files and reports its decisions back
+  for you to record.
+- **Choose each implementer's model by explicit rule**, set at dispatch (the
+  agent defaults to `opus`). Downgrade to `sonnet` only when the task is
+  *purely mechanical* — a rename, boilerplate, config, or copying an existing
+  pattern to a new file — **and** touches none of: auth or permissions, data
+  migrations or schema, shared or public interfaces, concurrency, money, or
+  anything the spec's Key Logic calls out. Everything else stays on `opus`.
+  When unsure, stay on `opus`.
+- **Write the acceptance tests in parallel.** In wave 1, alongside the
+  implementers, invoke `test-writer` with the spec, the repo's test locations
+  and commands from `CLAUDE.md`, and the test files it owns. It writes tests
+  from the spec **without reading the implementation**. Skip it when the spec's
+  criteria are all verified by commands or observable outcomes rather than
+  tests, or the repo has no test framework. Implementers don't write these
+  tests; leave the test-writer's files unstaged until the tests pass (below).
 - **No guessing.** If a task is ambiguous, incomplete, or conflicts with the
   codebase, stop that work and **gate: ambiguity** with the exact question and
   the options you see. When you can ask, a stopped task reports its question
@@ -291,6 +302,86 @@ git commit -m "feat(#{number}): {wave summary}"
 git push
 ```
 
+### 8b. Acceptance tests
+
+After the last wave, if `test-writer` wrote tests, run them with the focused
+command it returned. Each failure is one of two things — find out which before
+touching anything:
+
+- **The test contradicts the spec** (it asserts something the spec doesn't say,
+  or relied on an interface the spec doesn't define — check its Assumptions
+  against the implementation): fix the test, and log `- test: {file} — {what
+  changed} — because {reason}`.
+- **The implementation misses the spec**: fix the implementation (re-dispatch
+  the owning `implementer` with the failure), then re-run.
+
+Never weaken an assertion just to make it pass. If a failure can't be
+classified from the spec, **gate: ambiguity**.
+
+Once the tests pass, prove two things: **every test can fail**, and **every
+behavior the change adds would be caught if it broke**. A test that can never
+fail is worse than none, because it reads as coverage; a gap is a bug that will
+ship green.
+
+1. **Red against base.** Run the new tests against `origin/main`'s code, in
+   place — a fresh worktree has no installed dependencies or local env file
+   (`vendor/`, `node_modules/`, `.env`), so tests can't run there. The
+   implementation is committed and the new tests are still uncommitted, so
+   this is safe: for each source file the branch changed (`git diff --name-only
+   --diff-filter=M origin/main...HEAD`), `git checkout origin/main -- {file}`;
+   for each source file it added (`--diff-filter=A`), delete it. Leave test
+   files, dependency manifests and lockfiles alone. Run the focused command,
+   then restore everything with `git checkout HEAD -- {every file you
+   touched}` and confirm `git status` shows only the uncommitted tests. Every test not marked `guards existing`
+   must fail there — and fail on its **assertion**, not only on a missing import
+   or undefined symbol; if the only failure is a missing symbol, judge from the
+   test's `catches:` line whether its assertion would still bite. A test that
+   passes on base and isn't guarding existing behavior tests nothing: rewrite
+   it to assert what the change adds, or delete it.
+2. **Behavior list.** Every behavior on `test-writer`'s list must map to a test
+   or to a stated reason it isn't tested. An unmapped behavior is a gap.
+3. **Changed-line coverage.** If the repo already has a coverage tool set up
+   (`pytest-cov`, PHPUnit/Pest coverage with a driver, `c8`/Istanbul/Vitest
+   coverage, JaCoCo, `go test -cover`, …), run the focused tests with coverage
+   and list the **changed lines** (from `git diff origin/main...HEAD`) they
+   never execute. Never chase a whole-repo percentage, and don't install a
+   tool to get this — skip the step if none is set up.
+4. **Break the code.** The implementation is committed, so this is safe.
+   - If `CLAUDE.md` has a **`## Mutation Testing`** section, run its command
+     scoped to the changed source files — or the classes in them, if the
+     section says the tool scopes by class; every surviving mutant (untested or
+     uncovered) is a gap.
+   - Otherwise plant breaks by hand. For **each changed function or method
+     with logic** (skip pure wiring, getters, and declarations), make up to
+     **five** small, realistic breaks, one at a time, starting with the logic
+     the spec's Key Logic calls out: invert a condition, shift a boundary
+     (`<` ↔ `<=`, off-by-one), delete a branch or early return, return a wrong
+     or empty value, drop a side effect (a write, an event, a call), skip a
+     validation. Run the tests covering that file after each break, record
+     whether any failed, and restore with `git checkout -- {file}` before the
+     next. A break no test catches is a gap.
+   - A break that changes nothing a caller could observe (an equivalent
+     mutant) isn't a gap: log `- test: {file}:{line} — break has no observable
+     effect — {why}` and move on. Don't write a test for it.
+5. **Fill the gaps.** Invoke `test-writer` in `gap-fill` mode with the
+   surviving breaks, unmapped behaviors, and uncovered lines. Its new tests go
+   through steps 1 and 4 too: each must fail on base (unless it guards existing
+   behavior) and must catch the break it was written for. Any question it
+   returns is a **gate: ambiguity**. Re-check after each round, and run at most
+   two rounds; gaps still open after the second go to step 10 as `WARNING`s
+   ("untested: {behavior}") instead of looping.
+6. **Read what's left.** Delete any remaining test that matches a pattern
+   `test-writer` forbids (tautology, existence-only, over-mocked, framework,
+   unreviewed snapshot, restated implementation), even if it passed the checks
+   above — then re-run step 4 on the behaviors it covered, since deleting it
+   may reopen a gap.
+
+Log each deleted or rewritten test as `- test: {file}::{name} — {deleted |
+rewritten} — because {it passed on base | survived a break | pattern}`, and the
+totals as `- coverage: {n} breaks planted, {n} caught, {n} equivalent, {n} open`.
+Then run focused verification on what changed, and commit and push the tests
+together with any fixes (`test(#{number}): acceptance tests`).
+
 ### 9. Ready for review
 
 All waves are implemented, verified, and pushed. Mark the PR ready and stash
@@ -336,6 +427,18 @@ Each review agent tags findings `BLOCKER`, `WARNING`, or `NOTE`.
 `deploy-risk-scanner` returns a risk level — treat `HIGH` as a `BLOCKER`, `low`
 as a `NOTE`. Then run `/code-review` over the same diff as a sixth, independent
 pass; if it isn't available here, note that and continue with the five agents.
+
+**Verify every BLOCKER and WARNING before anyone acts on it.** Invoke
+`finding-verifier` once per finding, all in parallel, passing the finding, the
+spec, the decision log, and the diff. Then:
+
+- **REFUTED** — drop it. Log `- review: {finding} — refuted: {evidence}`.
+- **CONFIRMED** — keep it, at the verifier's severity.
+- **UNCERTAIN** — keep it, and say so when you ask.
+
+Only surviving findings go to auto-fix and to the user. `deploy-risk-scanner`'s
+`HIGH` is exempt — a deploy risk is never refuted away; it's confirmed or
+asked about.
 
 **Auto-fix the safe ones** — lint, missing import, type error, obvious typo,
 dead code the diff introduced. Never auto-fix anything that changes behavior or

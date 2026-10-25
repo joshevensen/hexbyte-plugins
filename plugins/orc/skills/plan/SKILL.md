@@ -53,7 +53,11 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status
 
 ### 2. Research the codebase
 
-Explore what already exists before choosing an approach. Read
+Explore what already exists before choosing an approach. When the work spans
+several independent areas (schema, routes and services, frontend, tests),
+dispatch one read-only Explore subagent per area **in parallel** and have each
+return the files, conventions, and constraints it found — then reason over the
+combined result yourself. For work confined to one area, explore directly. Read
 `.orc/decisions/resolved.md` too, if the repo has one — its rules answer
 questions you would otherwise ask (see `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`).
 Read `CLAUDE.md` for conventions and the project's `## Verification` / `## Focused Verification`
@@ -87,6 +91,23 @@ step 2, and an output path of
 
 **Every path the spec cites must actually exist** — a phantom path trips
 `build`'s confidence gate.
+
+### 3b. Critique the spec
+
+Invoke `spec-critic` with the spec path, the issue body, and the approach
+decisions settled in step 2. Act on what it returns before the user sees the
+spec:
+
+- **Phantom or wrong paths** — fix them in the spec yourself.
+- **Unverifiable criteria** — rewrite each to name a real test, command, or
+  observable outcome; if it can't be made verifiable, it's an open question.
+- **Inconsistencies and missing edge cases** — fold them into the spec when the
+  code or the settled decisions answer them; otherwise add them to Open
+  Questions.
+- **Open questions to add** — add them verbatim.
+
+Re-invoke `spec-critic` once if you changed more than paths. A second round is
+only for real changes — don't loop on nits.
 
 ### 4. Resolve open questions
 

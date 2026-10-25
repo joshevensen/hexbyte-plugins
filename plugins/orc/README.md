@@ -78,9 +78,11 @@ Everything is a GitHub issue — no task/feature split, no size threshold.
   spec to the same bar `build` re-checks: machine-verifiable acceptance criteria
   and `Open Questions: None.`
 - **`build`** decomposes the spec into a dependency-ordered task list. Independent
-  tasks run in parallel via subagents — each dispatched with the model that fits
-  its complexity — while genuinely dependent tasks run in sequence. Any size of
-  issue becomes one PR.
+  tasks run in parallel via `implementer` subagents — `opus` by default, `sonnet`
+  only for purely mechanical tasks — while genuinely dependent tasks run in
+  sequence. A `test-writer` writes acceptance tests from the spec alone, and
+  every review finding is checked by a `finding-verifier` before it reaches you.
+  Any size of issue becomes one PR.
 
 ## Decisions memory
 

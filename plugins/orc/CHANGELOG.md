@@ -2,6 +2,49 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.14.0]
+
+### Changed
+- `build` and `do` now run on `opus`; `do` runs `build` inline, so it follows.
+  `review-correctness` and `review-security` also move to `opus` — they run in
+  parallel with the other reviewers, so the cost is tokens, not wall-clock time
+- `build` dispatches the new `implementer` agent for each task instead of an
+  ad hoc general-purpose subagent. Its model is chosen by an explicit rule:
+  `sonnet` only for purely mechanical tasks that touch no auth, schema, shared
+  interface, concurrency, money, or Key Logic call-out; `opus` otherwise
+- `plan` explores independent areas of the codebase with parallel Explore
+  subagents before writing the spec
+- `resume`'s re-review mirrors the new finding verification in `build`
+
+### Added
+- `test-writer` agent — writes acceptance tests from the spec alone, blind to
+  the implementation, in parallel with wave 1. `build` runs them after the last
+  wave (new step 8b) and classifies each failure as a bad test or a bad
+  implementation before fixing anything
+- `finding-verifier` agent — tries to disprove each BLOCKER and WARNING before
+  the user is asked about it, so only findings that survive reach auto-fix and
+  the question round
+- `spec-critic` agent — audits the drafted spec in `plan` (new step 3b) for
+  phantom paths, unverifiable criteria, inconsistencies, and missed edge cases
+  before the user sees it
+- Guardrails against tests that can't fail. `test-writer` must name the bug
+  each test catches and is barred from tautologies, existence-only checks,
+  over-mocked tests, framework tests, unreviewed snapshots, and restated
+  implementation. `build` step 8b runs each new test against `origin/main`
+  (it must fail there unless marked `guards existing`) and spot-checks one
+  realistic break per acceptance criterion, deleting or rewriting any test
+  that doesn't catch it. `review-quality` flags tests that can't fail and
+  counts them as no coverage
+- Behavioral coverage in `build` step 8b. `test-writer` lists every behavior
+  the spec requires and maps each to a test or a stated reason. After
+  implementation, `build` plants up to five realistic breaks per changed
+  function (or runs the command in an optional `## Mutation Testing` section
+  of `CLAUDE.md`), measures changed-line coverage when the repo already has a
+  coverage tool, and sends surviving breaks and uncovered lines back to
+  `test-writer` in a new `gap-fill` mode. Gap-fill tests pass the same
+  must-fail checks; gaps still open after two rounds surface as review
+  `WARNING`s
+
 ## [0.13.1]
 
 ### Fixed
