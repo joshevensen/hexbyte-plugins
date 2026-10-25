@@ -323,10 +323,16 @@ behavior the change adds would be caught if it broke**. A test that can never
 fail is worse than none, because it reads as coverage; a gap is a bug that will
 ship green.
 
-1. **Red against base.** Run the new tests against `origin/main`'s code with
-   the new test files copied in (`git worktree add .orc/tmp/{number}-base
-   origin/main`, copy the test files, run the focused command there, then
-   `git worktree remove --force` it). Every test not marked `guards existing`
+1. **Red against base.** Run the new tests against `origin/main`'s code, in
+   place — a fresh worktree has no installed dependencies or local env file
+   (`vendor/`, `node_modules/`, `.env`), so tests can't run there. The
+   implementation is committed and the new tests are still uncommitted, so
+   this is safe: for each source file the branch changed (`git diff --name-only
+   --diff-filter=M origin/main...HEAD`), `git checkout origin/main -- {file}`;
+   for each source file it added (`--diff-filter=A`), delete it. Leave test
+   files, dependency manifests and lockfiles alone. Run the focused command,
+   then restore everything with `git checkout HEAD -- {every file you
+   touched}` and confirm `git status` shows only the uncommitted tests. Every test not marked `guards existing`
    must fail there — and fail on its **assertion**, not only on a missing import
    or undefined symbol; if the only failure is a missing symbol, judge from the
    test's `catches:` line whether its assertion would still bite. A test that
