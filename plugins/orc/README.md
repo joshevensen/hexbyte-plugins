@@ -138,6 +138,14 @@ They're shown in the session for approval, committed to the issue's branch,
 handed to implementers as the visual target, and shown again in the
 walkthrough. Starter: [`templates/mockup.html`](templates/mockup.html).
 
+## Branches
+
+orc never asks which branch to use (`templates/branch.md`): an issue with an
+open PR uses that PR's branch; otherwise the session's own branch (Claude
+Code on the web gives every session one); otherwise, e.g. locally on `main`,
+a new `issue/{n}-{slug}` branch. orc finds an issue's PR from the issue, not
+from a branch name.
+
 ## Focused verification
 
 `build` verifies with **scoped/filtered** test runs — only the tests around

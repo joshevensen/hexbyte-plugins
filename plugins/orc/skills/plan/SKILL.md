@@ -211,20 +211,22 @@ Ask with `AskUserQuestion`: **Approve** / **Change something** (free text) /
 **Show the full spec**. Apply changes and ask again until approved. If the
 engineer won't approve yet, leave `status:draft` and say what's open.
 
-On approval, commit any mockups to the issue's branch (the same
-`issue/{number}-{slug}` name `build` uses, with the slug from `issue-loader`)
-so `build` and the PR carry them. Never commit them to `main` or the
-session's current branch:
+On approval, commit any mockups to the issue's branch so `build` and the PR
+carry them. Resolve `{branch}` as `${CLAUDE_PLUGIN_ROOT}/templates/branch.md`
+describes — no question asked; it's normally the session's own branch. Never
+commit them to the default branch. If `{branch}` isn't the current branch,
+create it from `origin/main` and move the mockups over:
 
 ```bash
+# only when {branch} isn't the current branch:
 git stash push --include-untracked -- .orc/mockups/{number}/
 git fetch origin main
-git switch -C issue/{number}-{slug} origin/main
+git switch -C {branch} origin/main
 git stash pop
+# always:
 git add .orc/mockups/{number}/
 git commit -m "docs(#{number}): mockups"
-git push --force-with-lease -u origin issue/{number}-{slug}
-git switch -          # back to where the session was
+git push -u origin {branch}
 ```
 
 Then post the spec:

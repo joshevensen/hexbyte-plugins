@@ -60,6 +60,10 @@ wasn't sure of.
   its thread is resolved
 - `deploy-risk-scanner` writes deploy notes instead of a risk level; nothing
   it finds blocks. Destructive data changes become a walkthrough question
+- Branches: orc never asks which branch to use. An issue with an open PR
+  uses that PR's branch; otherwise the session's own branch; otherwise a new
+  `issue/{n}-{slug}` (`templates/branch.md`). The PR is found from the issue,
+  not from a branch name
 - `plan` runs on `opus`; `spec-writer` builds on plan's research instead of
   repeating it, and scales the spec to its size
 - `spec-critic` also checks end-to-end coverage and the risk rating

@@ -1,6 +1,6 @@
 ---
 name: issue-loader
-description: Fetches a GitHub issue by number and extracts structured metadata — title, labels, status, spec comment, branch slug, and body. Used by plan and build to load issue context at the start of each step.
+description: Fetches a GitHub issue by number and extracts structured metadata — title, labels, status, spec comment, slug, linked PR, and body. Used by plan and build to load issue context at the start of each step.
 tools: Bash
 model: haiku
 ---
@@ -15,7 +15,7 @@ You are a GitHub issue loader. You receive an issue number in the prompt (and op
 - **labels** — all label names as a list
 - **status** — the single `status:*` label value (e.g. `ready`, `building`, `draft`), or `none` if absent
 - **slug** — derived from the title: lowercase, spaces → hyphens, strip punctuation (e.g. "Add user auth" → `add-user-auth`)
-- **branch** — derived as `issue/{number}-{slug}` (uniform for every issue — regular changes and bugs all build the same way)
+- **branch** — `issue/{number}-{slug}`: the fallback branch name, used only when the issue has no PR and the session has no branch of its own (see orc's `templates/branch.md`)
 - **body** — the full issue body text
 - **spec_comment** — the body of the most recent issue comment whose body starts with `## Spec` or `# Spec`, or `none` if no such comment exists
 - **pr_url** — the URL from the most recent issue comment that contains a GitHub PR link (`/pull/`), or `none` if absent

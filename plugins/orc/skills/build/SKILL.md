@@ -146,7 +146,7 @@ use GraphQL, which Claude Code on the web blocks with a 403.
 
 ### 1. Load
 
-Invoke `issue-loader` with `{number}`. Use the returned title, slug, branch,
+Invoke `issue-loader` with `{number}`. Use the returned title, slug, PR URL,
 labels, status, body, and spec comment.
 
 Expect `status:ready`. `status:blocked`, `status:building`, or `status:built`
@@ -192,6 +192,10 @@ Verification` section), there is no way to prove the build is sound →
 
 ### 5. Branch
 
+Resolve `{branch}` as `${CLAUDE_PLUGIN_ROOT}/templates/branch.md` describes —
+never ask about it. In a cloud session with no PR yet, that's the session's
+own branch. Note the issue's open PR, if rule 1 found one, as `{pr}`.
+
 Always start from a clean base so reruns are deterministic, carrying over the
 mockups `plan` committed to this branch:
 
@@ -213,19 +217,14 @@ pushes are plain `git push`.
 
 **Open the PR at the first push** — right here if the mockups commit exists,
 otherwise after wave 1's commit (GitHub won't open a PR with no commits).
-Reuse an open PR left by a previous run of this issue:
+Reuse the issue's open PR from a previous run (`{pr}` from the branch rule):
 
-```bash
-existing=$(${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find "{branch}" open)   # {number,url,state,draft} or empty
-```
-
-- **None** — create it in draft:
+- **None** — create it in draft, from `{branch}`:
   ```bash
   ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --draft --base main --title "{title}" \
     --body "🚧 Build in progress. Closes #{number}."   # prints {number,url}
   ```
-- **Exists** — reuse it (`{pr}` = its number), and put it back in draft if it
-  isn't: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-ready {pr} --undo 2>/dev/null || true`.
+- **Exists** — reuse it, and put it back in draft if it isn't: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-ready {pr} --undo 2>/dev/null || true`.
 
 Then post the PR URL as an issue comment and post the decision record.
 
