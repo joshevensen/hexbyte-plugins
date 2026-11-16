@@ -13,7 +13,13 @@ Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that 
 - References to the removed `/orc:resume` now point at `/orc:walkthru`
 
 ### Removed
-- `list` — GitHub's label filter covers it
+- `list` — GitHub's label filter covers it, and `orc:status` covers a session
+- `push` — unused; small changes don't need a skill, and anything worth a
+  review goes through orc. Its review agents (`review-correctness`,
+  `review-quality`, `deploy-risk-scanner`, `conflict-classifier`) and the
+  `ai-review.md` template go with it
+- `setup` commits its files and opens the PR itself instead of handing off
+  to `push`
 
 ## [0.3.2]
 

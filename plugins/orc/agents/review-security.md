@@ -1,6 +1,6 @@
 ---
 name: review-security
-description: Invoked during the build/push review step. Checks for injection vectors, auth gaps, data exposure, insecure defaults, and input validation problems.
+description: Invoked during the orc build and walkthru review steps (and util bump). Checks for injection vectors, auth gaps, data exposure, insecure defaults, and input validation problems.
 tools: Read, Grep, Glob
 model: opus
 ---

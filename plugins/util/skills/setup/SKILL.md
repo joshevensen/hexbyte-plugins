@@ -4,7 +4,7 @@ description: Wire a repo for orc — labels, .orc directory, CLAUDE.md verificat
 model: sonnet
 ---
 
-The day-to-day loop (`create`, `plan`, `build`, `walkthru`, `push`)
+The day-to-day loop (`create`, `plan`, `build`, `walkthru`)
 self-provisions its own labels — each defensively ensures a bare (`gh-rest label-ensure`)
 version of any `status:*` label right before it's first needed — and needs no
 setup to work in a fresh repo. That self-provisioning is intentionally minimal
@@ -22,8 +22,7 @@ reliably done as one command than a manual checklist — most importantly the
 — `CLAUDE.md` sections, the PR template, `CHANGELOG.md`, `dependabot.yml`,
 `.orc/` — since previewing exactly those files is the point, and none of it
 is pushed. Pass `--dry-run` through to both label scripts in step 2 (they
-support it directly and print what would change instead of writing labels). Skip step 8 entirely — nothing gets committed, pushed, or handed to
-`/util:push`. End with:
+support it directly and print what would change instead of writing labels). Skip step 8 entirely — nothing gets committed or pushed. End with:
 ```
 DRY RUN — files written for review: {list}. Labels: see step 2 output above.
 Nothing committed or pushed. Re-run without --dry-run to commit and open a PR.
@@ -177,9 +176,20 @@ If nothing was created or modified locally, skip to step 9 — GitHub-only chang
 git status --short
 ```
 
-Stage only files this setup run touched, then hand off to `/util:push` with the
-message `chore: configure orc` to commit, review, and open the PR. Merge it
-yourself.
+Stage only files this setup run touched, commit them on a branch, and open a
+PR. Merge it yourself.
+
+```bash
+git fetch origin main
+git switch -c orc/setup origin/main 2>/dev/null || git switch orc/setup
+git add {files this run touched}
+git commit -m "chore: configure orc"
+git push -u origin orc/setup
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "chore: configure orc" --body "Configures this repo for orc (labels, .orc/, CLAUDE.md verification sections, PR template, CHANGELOG, dependabot)."
+```
+
+If the working tree already had changes before setup ran, stage only setup's
+files and leave the rest alone.
 
 ### 9. Report
 

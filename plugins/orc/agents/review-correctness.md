@@ -1,6 +1,6 @@
 ---
 name: review-correctness
-description: Invoked during the build/push review step. Checks that a diff satisfies every spec acceptance criterion, detects scope drift against the Out of Scope list, and identifies logic errors or unhandled edge cases.
+description: Invoked during the orc build and walkthru review steps (and util bump). Checks that a diff satisfies every spec acceptance criterion, detects scope drift against the Out of Scope list, and identifies logic errors or unhandled edge cases.
 tools: Read, Grep, Glob
 model: opus
 ---
