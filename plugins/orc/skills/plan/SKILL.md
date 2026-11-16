@@ -54,6 +54,20 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:ready"
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:ready" --add-label "status:draft"
 ```
 
+**Related issues.** If the body says `Part of #{parent}`, read the parent
+(`gh-rest issue-view {parent}`) for its Shared context and Build plan. Then
+check blockers:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-blockers {number}
+```
+
+If any blocker is still open, its code isn't on `main`, so research against
+it is guesswork. Say which, and ask: **Wait** (stop here; plan once it
+merges) or **Plan against its spec** (treat the blocker's posted spec as the
+contract — its files, interfaces, and schema — and record that as a
+low-confidence decision). A blocker with no spec yet leaves only **Wait**.
+
 ### 2. Research the codebase
 
 Explore what already exists before choosing an approach. When the work spans
@@ -78,6 +92,12 @@ Write what you found to `.orc/tmp/{number}-research.md` (`mkdir -p .orc/tmp`):
 touchpoints with one line each, conventions, constraints, the flows traced,
 and existing tests. `spec-writer` builds from this instead of researching
 again.
+
+For a related issue, also read the specs of its siblings in the **same
+phase** of the parent's build plan. If this spec would modify files a
+same-phase sibling also modifies, they can't safely build in parallel: say
+so, and offer to make one block the other (`gh-rest issue-block`) and update
+the parent's build plan.
 
 ### 3. Challenge the idea
 

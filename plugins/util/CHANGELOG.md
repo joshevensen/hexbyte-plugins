@@ -8,8 +8,8 @@ Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that 
 - `setup` no longer creates `.orc/decisions/` — orc 0.15 replaced the
   decisions memory with a Decisions comment on each PR and `/orc:learn`. An
   existing `.orc/decisions/` is left for `/orc:learn` to fold in
-- `scripts/gh-rest` gains `comment-upsert` and `pr-merged-list` (kept in sync
-  with orc's copy)
+- `scripts/gh-rest` synced with orc's copy (new comment, merged-PR,
+  sub-issue, and dependency commands)
 - References to the removed `/orc:resume` now point at `/orc:walkthru`
 
 ### Removed

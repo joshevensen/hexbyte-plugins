@@ -51,6 +51,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:plan` | Analyze the codebase, challenge the idea, settle decisions, assess size and risk, mock up UI changes, and post a spec you approve |
 | `/orc:build` | Take a specced issue to a reviewed PR: waves of parallel implementers, blind acceptance tests, a criteria ledger, independent AI review, decisions recorded with confidence. Depth follows the spec's size and risk. Never merges |
 | `/orc:walkthru` | Finish a built PR with you: fix CI or conflicts, handle Copilot and other PR comments, one-screen summary, questions only on low-confidence decisions, last changes through a mini build, squash-merge on your yes |
+| `/orc:status` | Recap this session after time away: the issue, where it stopped, what was decided, what changed on GitHub since, and what to do next. Read-only, runs on haiku |
 | `/orc:learn` | Every so often: turn decisions that recur across merged PRs (or that you tagged as rules) into `CLAUDE.md` rules, via a PR |
 | `/orc:discuss` | Read-only exploration mode — talk through ideas, or ask what a file, route, or PR does; no changes until you say "green light" |
 
@@ -67,7 +68,9 @@ using them.
 ```
 
 - **`create`** gets the idea out of your head: scope, in/out, open questions
-  resolved. Splits only when work is genuinely independent.
+  resolved. Splits only when work is genuinely separable. Pieces of one goal
+  get a **parent issue** with a build plan — phases, what blocks what, and
+  what can run in parallel — linked as GitHub sub-issues and dependencies.
 - **`plan`** is where your effort goes. It researches the codebase (tracing
   the user flows the change touches), says plainly if the idea won't work or
   a simpler one would, settles every real fork with you, rates **size**
@@ -157,6 +160,7 @@ it rebuilds from `origin/main` and reuses the PR.
 | Confidence | material ambiguity between the spec and the codebase, and no one to ask |
 | Ambiguity | mid-build, a question that blocks later work, and no one to ask |
 | Verify | focused tests fail and can't be safely fixed, or an `[e2e]` criterion can't be met |
+| Blocked | an issue it depends on (`Blocked by`) isn't merged yet |
 | Missing infra | `CLAUDE.md` has no `## Verification` / `## Focused Verification` section |
 
 ## `--dry-run`

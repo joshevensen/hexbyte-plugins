@@ -225,6 +225,15 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-merge {pr} --delete-branch
 Report in one line. If the PR has deploy notes, end with: `🚀 Deploy notes:
 {n} step(s) on the PR — run them with this deploy.`
 
+**Related issues.** If the issue body says `Part of #{parent}`, update the
+parent's build plan: read its body (`gh-rest issue-view {parent}`), tick
+`- [ ] #{issue}` → `- [x] #{issue}`, and save it (`gh-rest issue-edit
+{parent} --body-file …`). If every box is now ticked, close the parent
+(`gh-rest issue-close {parent}`). Otherwise list the siblings this merge
+unblocked — open sub-issues (`gh-rest issue-subs {parent}`) whose blockers
+(`gh-rest issue-blockers {n}`) are all closed — as `Can start now: #{n} —
+{title}`, each in its own session.
+
 ## Rules
 
 - Never merge without the explicit **Merge it** choice.

@@ -155,6 +155,12 @@ already built and only needs changes, `/orc:walkthru` is the cheaper path; say
 so and ask before rebuilding. `status:draft`: **gate: spec** (run
 `/orc:plan {number}`).
 
+**Blockers.** `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-blockers {number}`.
+If any is still open, this build would start from a `main` that lacks code it
+needs. Ask whether to build anyway (only right if the spec was planned
+against the blocker's spec and doesn't touch its code); otherwise, or with no
+one to ask, **gate: blocked** naming the open blockers.
+
 ### 2. Gate: spec
 
 Validate the spec comment against `${CLAUDE_PLUGIN_ROOT}/templates/spec.md`:

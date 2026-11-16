@@ -5,8 +5,8 @@ Tracks the `ink` plugin's `version` in `.claude-plugin/plugin.json`. Bump that f
 ## [0.1.2]
 
 ### Changed
-- `scripts/gh-rest` synced with orc's copy (adds `comment-upsert` and
-  `pr-merged-list`); no change to ink's own behavior
+- `scripts/gh-rest` synced with orc's copy (new comment, merged-PR,
+  sub-issue, and dependency commands); no change to ink's own behavior
 
 ## [0.1.1]
 

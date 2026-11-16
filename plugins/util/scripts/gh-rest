@@ -35,6 +35,11 @@
 #                                     edit the issue/PR comment whose body starts with <marker>, or post it
 #   pr-merged-list [--label L] [--limit N]
 #                                     merged PRs, newest first; --label L keeps only PRs WITHOUT label L
+#   issue-close <n>                   close an issue as completed
+#   issue-sub-add <parent> <child>    make <child> a sub-issue of <parent>
+#   issue-subs <n>                    sub-issues: [{number,title,state}]
+#   issue-block <n> <blocker>         record that <n> is blocked by <blocker>
+#   issue-blockers <n>                issues blocking <n>: [{number,title,state}]
 #   label-ensure <name> [color]       create the label if missing
 #
 # Commands that GitHub only exposes through GraphQL (ready-for-review, review
@@ -332,6 +337,33 @@ case "$CMD" in
     if [[ -n "$BODY_SET" ]]; then
       jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/$n" -X PATCH --input - --silent
     fi
+    ;;
+
+  issue-close)
+    n="${1:?issue number}"
+    echo '{"state":"closed","state_reason":"completed"}' | rapi "issues/$n" -X PATCH --input - --silent
+    ;;
+
+  issue-sub-add)
+    p="${1:?parent issue}"; c="${2:?child issue}"
+    cid=$(rapi "issues/$c" --jq .id)
+    jq -n --argjson i "$cid" '{sub_issue_id: $i}' | rapi "issues/$p/sub_issues" --input - --silent
+    ;;
+
+  issue-subs)
+    n="${1:?issue number}"
+    rapi "issues/$n/sub_issues" --paginate --jq '.[] | {number, title, state: (.state | ascii_upcase)}' | jq -s '.'
+    ;;
+
+  issue-block)
+    n="${1:?issue number}"; b="${2:?blocking issue}"
+    bid=$(rapi "issues/$b" --jq .id)
+    jq -n --argjson i "$bid" '{issue_id: $i}' | rapi "issues/$n/dependencies/blocked_by" --input - --silent
+    ;;
+
+  issue-blockers)
+    n="${1:?issue number}"
+    rapi "issues/$n/dependencies/blocked_by" --paginate --jq '.[] | {number, title, state: (.state | ascii_upcase)}' | jq -s '.'
     ;;
 
   label-ensure)

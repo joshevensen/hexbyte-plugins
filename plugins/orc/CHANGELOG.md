@@ -9,6 +9,15 @@ Rebalances the pipeline toward planning: the engineer's effort goes into
 wasn't sure of.
 
 ### Added
+- `/orc:status` — recaps this session after time away: the issue, where the
+  pipeline stopped, what was decided, what changed on GitHub since, and the
+  next-step options. Read-only, on `haiku`
+- Related issues in `create`: a parent issue with a phased build plan (what
+  blocks what, what can run in parallel), linked as GitHub sub-issues and
+  "blocked by" dependencies. `plan` warns on open blockers and same-phase
+  file overlap, `build` gates on open blockers, and `walkthru` ticks the
+  parent's plan, names newly unblocked issues, and closes the parent when
+  the last one merges
 - `/orc:learn` — reads the Decisions comment on merged PRs not yet labelled
   `orc:learned`, proposes `CLAUDE.md` rules for decisions that recur across
   PRs or that were tagged as rules in a walkthrough, flags stale rules, and
@@ -27,7 +36,8 @@ wasn't sure of.
 - `build` posts a **criteria ledger** (each criterion with its proof), a
   **Decisions** comment (updated per wave), and **Deploy notes** when a
   deploy needs steps
-- `gh-rest comment-upsert` and `gh-rest pr-merged-list`
+- `gh-rest comment-upsert`, `pr-merged-list`, `issue-close`, `issue-sub-add`,
+  `issue-subs`, `issue-block`, and `issue-blockers`
 
 ### Changed
 - `build` picks its verification depth from Size and Risk: implementers,
