@@ -1,6 +1,6 @@
 ---
 name: review-quality
-description: Invoked during the build/push review step. Checks complexity, consistency with surrounding codebase patterns, and test coverage of critical paths.
+description: Invoked during the orc build and walkthru review steps (and util bump). Checks complexity, consistency with surrounding codebase patterns, and test coverage of critical paths.
 tools: Read, Grep, Glob
 model: sonnet
 ---

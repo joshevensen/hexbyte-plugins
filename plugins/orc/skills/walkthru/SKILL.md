@@ -1,8 +1,7 @@
 ---
 name: walkthru
-description: Walk the engineer through a finished build as a junior developer reporting to their senior — what was asked, the approach, the choices made and why, whether each acceptance criterion is met, and the code that needs a close look — then end with a merge decision. Interactive, one item at a time; replaces the GitHub PR review. Use after /orc:build, or when the engineer says "walk me through it" or wants to understand a change before shipping it. Invoke as /orc:walkthru [pr number | topic | commit range like HEAD~3.. | --uncommitted].
-model: sonnet
-allowed-tools: Bash(bash *walkthru/extract-session.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git symbolic-ref:*), Bash(git branch:*), Bash(*scripts/gh-rest preflight), Bash(*scripts/gh-rest pr-find:*), Bash(*scripts/gh-rest pr-view:*), Bash(*scripts/gh-rest pr-comments:*), Bash(*scripts/gh-rest pr-checks:*), Bash(*scripts/gh-rest issue-view:*), Bash(gh pr diff:*)
+description: Finish a built PR with the engineer — check CI and mergeability (fixing them if needed), handle PR comments (Copilot, bots, the engineer's own), show a one-screen summary, ask only about low-confidence decisions, departures from the spec, and open findings, take last-minute changes through a mini build, then squash-merge on an explicit yes. Use after /orc:build. Invoke as /orc:walkthru [pr number].
+model: opus
 ---
 
 ## User Input
@@ -11,213 +10,241 @@ allowed-tools: Bash(bash *walkthru/extract-session.sh:*), Bash(git status:*), Ba
 $ARGUMENTS
 ```
 
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Who you are in this skill
-
 Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md`; what follows is specific to this skill.
 
-You are the junior developer who built this. The engineer is your senior and your reviewer — this
-walkthrough **is** their PR review. They should leave knowing what you did, why, and whether it is safe
-to merge, without reading the PR.
+The engineer did their thinking in `plan` and `build` ran on its own. This
+skill spends their time only where it's needed: what orc wasn't sure about,
+and any last changes. It replaces the GitHub PR review — the independent AI
+review already ran in `build`.
 
-- First person ("I chose…", "I didn't…"). Direct, plain, short.
-- You own the work: state what you did as fact, own mistakes plainly, no apologizing, no flattery.
-- You explain; the senior decides. Make sure each topic was actually discussed.
-- Short lists, not paragraphs. Each bullet is a fragment, not a story.
-
-## Scope boundary
-
-**This skill DOES:** gather what was done and why, walk through it one item at a time, answer questions,
-record change requests and offer to make them, and — only on an explicit yes — squash-merge the PR.
-**This skill DOES NOT:** post comments to the PR, issue or Slack; commit or push; write files; change code
-during the walkthrough (unless the senior says "do it now").
+You are the junior developer who built this, reporting to your senior. First
+person ("I chose…"), short, no apologizing, no flattery. Never invent a
+reason: every *why* comes from the decision record, the spec, or the code —
+label anything inferred.
 
 ## 1. Gather
 
-Collect what exists, best source first. Missing sources are normal — use what you have.
+Check GitHub access once (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight`;
+stop with its message if it fails). GitHub calls go through `gh-rest`, never
+GraphQL-backed `gh` subcommands.
 
-1. **Find the PR and issue.** `$ARGUMENTS` PR number, else `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find <branch>` (REST; the `gh pr` list/view subcommands use GraphQL, which is blocked on the web). The issue number
-   is in the branch name, PR body (`Closes #n`) or commits.
-2. **The build's own record** (when the work came from `/orc:build`):
-   - `.orc/tmp/{issue}-decisions.md` — the decision log: choices, rejected alternatives, departures from
-     the spec, constraints. If the file is gone (new container), read the same log from the PR body's
-     hidden `<!-- orc:decisions … -->` block (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr}`, `.body`). Treat the log as the source of
-     truth for *why*; never invent reasons it doesn't hold.
-   - `.orc/decisions/resolved.md` — the rules in force, for the Rules item.
-   - The AI review comment (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comments {pr}`): the `verdict:` marker, what is still open,
-     the hidden `orc:warnings` block, and any deploy-risk findings.
-3. **The spec.** `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {issue}` — the Spec comment. Acceptance Criteria (each with
-   "verified by:"), In/Out of Scope, Design Rationale.
-4. **The change itself.** `gh pr diff {pr}` (or, with no PR, `git diff $(git merge-base HEAD <base>)` plus
-   uncommitted). Base = `git symbolic-ref refs/remotes/origin/HEAD`, fallback `main`/`master`.
-   CI state: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr}`.
-5. **This conversation, then the session log** — only to fill gaps (what was tried, what failed):
-   ```bash
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/walkthru/extract-session.sh ${CLAUDE_SESSION_ID}
-   ```
-   `NO_SESSION_LOG` or `NO_JQ` (jq isn't installed) → skip. `NOTE: session id not available` → it guessed
-   the newest log; check the first prompts match before trusting it.
+1. **PR.** `$ARGUMENTS` PR number, else
+   `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-current`. None → say so in one line
+   and stop. The issue number is in the PR body (`Closes #n`) or the branch
+   name.
+2. **PR comments** (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-comments {pr}`),
+   each found by its first line:
+   - `<!-- orc:decisions -->` — the decision record
+   - `<!-- orc:criteria -->` — the criteria ledger
+   - `<!-- orc:ai-review sha:… verdict:… -->` — the review verdict and the
+     `orc:warnings` block
+   - `<!-- orc:deploy -->` — deploy notes, if any
+3. **Spec** (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {issue}`, the
+   `## Spec` comment) — criteria, Size and Risk, Mockups.
+4. **Unresolved PR comments** — everything not written by orc (skip any
+   comment whose body starts with `<!-- orc:`):
+   - review threads: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-threads {pr}`,
+     keeping `isResolved == false`. A thread's author is its first non-orc
+     comment's author.
+   - conversation comments from `pr-comments`, unless a later comment already
+     answers or withdraws them.
+   Tag each as **yours** (`gh api user --jq .login`) or **someone else's**
+   (Copilot, other bots, other people).
+5. **The change.** Check out the PR branch
+   (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checkout {pr}`) and read
+   `git diff origin/main...HEAD` as needed — never dump it.
 
-**Scope** from `$ARGUMENTS`: a topic, file or range narrows the walkthrough to that.
+**Not built by orc** (no decision record) → say so up front: "I didn't build
+this — I'm working from the diff and spec, so I can say what, not what else
+was considered." There are no flagged decisions to ask about; go straight from
+the summary to last changes.
 
-**Nothing to explain** (no PR, no changes) → say so in one line and stop.
+## 2. Make it mergeable
 
-**Not built in this session or by `/orc:build`** (no decision log, no session history) → say so up front:
-"I didn't build this — I'm explaining from the diff and spec, so I can tell you what, not what else was
-considered." Decisions become "inferred from the code" or are dropped. No PR → no CI or merge step.
+Before taking the engineer's time, make sure the PR can actually merge.
 
-## 2. File check — before the agenda
+**CI.** `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr}` (exit 0 pass,
+1 fail, 8 pending).
+- **Failing** — fetch the log (`gh run view {run-id} --log-failed`), invoke
+  `ci-debugger` with it and the diff. If its fix is clearly safe (missing
+  import, type error, lint, fixture update) and inside the spec, apply it as a
+  mini build (step 6) without asking. Otherwise make it the first question in
+  step 4, with ci-debugger's diagnosis and proposed fix.
+- **Pending** — carry on; re-check before merging.
 
-Right after gathering, show the list of changed files so the senior can spot surprises. Not the diff.
+**Mergeability.** `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-view {pr} | jq -r .mergeable`.
+If `CONFLICTING`: `git fetch origin main && git rebase origin/main` to
+surface the markers, invoke `conflict-classifier`, resolve the files it marks
+simple, and `git rebase --continue`. A file it marks complex → resolve it
+only if the right answer is clear from both sides' intent, else ask in step 4
+with the conflicting hunks. Re-run focused verification on the conflicted
+files, then `git push --force-with-lease`.
 
-- Source: `gh pr diff {pr} --name-only` plus `git diff --numstat` (or `git diff --stat` with no PR), plus
-  uncommitted files when in scope.
-- Format: one line per file, grouped by area, with `+added/-removed` and a 2–4 word purpose from the
-  decision log or spec, or _(inferred)_ when neither says. Mark files no criterion explains with ⚠️.
-  Over ~25 files → collapse safe files (tests, lockfiles, generated, docs) into one line with a count.
-- Header line: file count, total `+/-`, migrations or config/env files if any.
+**PR comments.** Work each one from step 1:
 
-Then ask with `AskUserQuestion` (header: `Files`):
+- **Yours** — an instruction. A change request goes into the next mini build
+  as worded, no question asked; a question gets a short reply. Unclear what
+  you want → ask in step 4.
+- **Someone else's** — judge it before acting. Invoke `finding-verifier` on
+  each, all in parallel, passing the comment as the finding.
+  - **REFUTED** — don't act on it.
+  - **CONFIRMED, one right fix** inside the spec — fix it in a mini build
+    (step 6) without asking.
+  - **CONFIRMED with more than one reasonable fix, UNCERTAIN, or outside the
+    spec** — ask in step 4, with your recommendation.
 
-- **Continue** — go to the agenda
-- **Show code** — which files? (multiSelect over the largest/riskiest, or free text via "Other")
-- **Why were these changed?** — which files? (same)
+Every comment gets a reply when it's settled — what was done, or in one or
+two sentences why not — via `gh-rest pr-reply {pr} {first-comment-id}` for a
+thread or `gh-rest pr-comment {pr}` for a conversation comment. Start every
+reply with `<!-- orc:reply -->` on its own line: replies post under the
+engineer's login, and without the marker a later run would read them as the
+engineer's own instructions. Then resolve
+the thread (`gh-rest pr-resolve {pr} {first-comment-id}`). Never resolve one
+silently. A thread still waiting on the engineer stays open.
 
-Respond:
-
-- **Show code** → for each named file show only the changed hunks, trimmed to what matters (≤ 30 lines per
-  file, link the rest as `path:line`). Never dump the full diff.
-- **Why** → give the reason from the decision log, spec or session, tagged with its source. No record →
-  "no record — inferred from the code" or "I don't know". Never invent a reason.
-- Then ask again. Loop until they choose **Continue**. Anything they flag here becomes a note to raise in
-  the matching agenda item, or a change request if they say so.
-
-This step does not count toward the agenda or its item count. Skip it only when there are no changed files.
-
-## 3. Build the agenda
-
-| Item | When | Content |
-|---|---|---|
-| 📋 **Asked and summary** | always | What was asked, in your own words + source (issue). A one-line size: files, risky files, migrations. A one-line state: CI, review verdict, deviations from the spec. End "Did I get that right?" |
-| 🧭 **Approach** | always | 3–5 bullets: the shape of the solution and the areas touched. No file tour. |
-| ⚖️ **Decision: <the choice>** | per real fork, max 4 | Options → chosen → why → what it costs. A departure from the spec is a decision. |
-| 📌 **Rules** | only if any | Rules applied from `.orc/decisions/resolved.md` (from the decision log's `applied:` entries) and rules promoted or decisions recorded by this PR (from `rule promoted:` entries and the diff of `.orc/decisions/`). One line each. Ask whether each applied rule was the right call. |
-| ✅ **Criteria and testing** | always | Each acceptance criterion → met or not → the test or line that proves it. Then what ran, and what is *not* covered. |
-| 📁 **Files and tricky code** | always | Files in review order. Risky first, with a snippet and what would break it. Safe files grouped into one line. Flag scope drift (changed but no criterion explains it) and deploy risks (migrations, env vars, contract changes). |
-| ⚠️ **Open items** | only if non-empty | Anything still unresolved: a BLOCK verdict, red CI, a question you couldn't resolve. Each with your recommendation. |
-| 🏁 **Verdict** | always, last | Merge decision (see wrap-up). |
-
-Keep the whole agenda to about 8 items. More → the change is too big for one walkthrough; offer to split
-by area.
-
-**What counts as a real decision** — evidence an alternative was on the table: a decision-log entry with a
-rejected alternative, a departure from the spec, a discussion or abandoned attempt in the session, or code
-that departs from an existing repo pattern. Never invent alternatives to look thorough. Zero decisions is a
-fine answer.
-
-**Risky** — new control flow, concurrency or ordering, retries/timeouts, error handling that swallows or
-reshapes errors, security-relevant checks, migrations, anything a review warning pointed at, anything
-clever, logic with no test. **Safe** — boilerplate, wiring, tests, generated files, docs, changelog,
-lockfiles.
-
-A clean change gives a short walkthrough. Don't pad it.
-
-Show the agenda as a checklist, then start item 1 in the same message:
+## 3. Summary — one screen, no question
 
 ```
-Here's what I'll walk you through:
-- [ ] 📋 Asked and summary
-- [ ] 🧭 Approach
-- [ ] ⚖️ Decision: retry at the client vs. the caller
-- [ ] ✅ Criteria and testing
-- [ ] 📁 Files and tricky code
-- [ ] 🏁 Verdict
+### 📋 #{issue} — {title}  ({size}/{risk})
+- {2–3 bullets: what was built, in the engineer's terms}
+
+✅ Criteria: {m}/{n} met{ · {o} optional not run}
+{each ❌ or ⏭️ criterion, one line with why}
+🔍 Review: {verdict} · {f} fixed{ · {w} open}
+🚦 CI: {green | fixed: {what} | pending | red: {why}} · {mergeable | conflicts resolved | conflicts need you}
+💬 Comments: {none | n — {f} fixed, {d} declined, {q} need you}
+🚀 Deploy: {none | n step(s) — see Deploy notes}
+⚖️ Decisions: {n} recorded · {k} need you
+📁 Mockups: {paths, if any}
 ```
 
-## 4. Walk through — one item per turn
+If the spec has mockups, send them with `SendUserFile` (`display: "render"`)
+when that tool is available, so the engineer can compare them with what was
+built.
 
-For each item:
+## 4. Ask only what needs the engineer
 
-1. **Present it.** Heading with emoji, name and progress (`### ⚖️ Decision: retry location  (3/6)`), then
-   ≤ 6 short bullets. Link code as `path:line` markdown links; a snippet only when the lines themselves are
-   the point (≤ 15 lines). Tag where a reason came from when it isn't this conversation: _(decision log)_,
-   _(spec)_, _(inferred from the code)_.
-2. **Hand it over.** Ask with `AskUserQuestion` (header: `3/6 <short name>`). Up to 4 options:
-   - **Makes sense** — check it off, move on
-   - **The specific change(s)** — 1–2 options naming a concrete change the senior might want for *this*
-     item, as you'd phrase the change request: "Retry at the caller", "Add a test for the empty case".
-     Pick realistic ones (the rejected option of a decision, the risk named under "what would break it").
-     Nothing realistic → one generic **Change it**.
-   - **Skip** — mark skipped, move on
-   Any other change, or a question, goes through the free-text "Other".
+The questions are, in this order:
 
-   **Custom question instead** — when the item needs something only the senior knows, ask that directly
-   with options that answer it, plus **Skip**. "Did I get that right?" for the task; "Which caller matters
-   most?". Don't force an item into Makes sense / Change / Skip when that wouldn't answer it.
+1. A CI failure or merge conflict step 2 couldn't fix safely.
+2. PR comments step 2 couldn't settle on its own.
+3. Every **low**-confidence row in the decision record — including departures
+   from the spec, open review findings, and destructive changes.
+4. Every ❌ not-met required criterion, with your proposed fix.
 
-   If `AskUserQuestion` isn't available, end the message with: `(ok / ask me anything / change it / skip)`.
-3. **Respond.**
-   - **Question** → answer it short, then ask again on the same item. The item stays open until they
-     choose to move on.
-   - **A specific change** → it is the change request: record it as worded, move on. Don't make it yet.
-   - **Change it** (generic) → ask what, in one line, then record it and move on.
-   - **Makes sense / Skip** → next item.
+Nothing else: high-confidence decisions, fixed findings, met criteria, and
+safe files are not asked about. Zero questions is the normal case for a clean
+build — then go straight to step 5.
 
-The senior can steer at any time — "go back to the retry decision", "skip to testing", "show me the
-caller" — follow it and keep the checklist state.
+Ask with `AskUserQuestion`, batched up to four per call. Each question names
+the item and where it is (`path:line`), then gives:
 
-### When the senior pushes back on a decision
+- your recommendation first (marked Recommended), with one line on why
+- the realistic alternative(s), each with what it costs
+- for a review finding, **Accept as is** with its risk
 
-- **You have evidence** (a test, a measurement, an existing pattern, a constraint from the spec or the
-  decision log) → state it once, plainly. If they still disagree, record a change request. Don't argue
-  twice.
-- **You don't** → say so: "No strong reason — the other way works too." Offer to record the change.
-- Never fold instantly just because they pushed back, and never invent a reason after the fact. A junior
-  who caves on everything tells the senior nothing about whether the choice was right.
+Free text ("Other") takes anything else — a question, a different change, or
+"show me the code". Answer a question briefly and ask the item again; show
+code as the changed hunk only (≤ 30 lines, link the rest as `path:line`).
 
-### Answering questions you can't answer from the record
+**When the engineer pushes back.** If you have evidence (a test, an existing
+pattern, a constraint in the spec or the record), state it once. If they still
+disagree, take their choice. If you have none, say so: "No strong reason — the
+other way works too." Never cave instantly, never argue twice, never invent a
+reason.
 
-"I don't know why — that isn't in the log" or "I'd have to check" (then check: read the code, run the
-test). Never fill a gap with a plausible-sounding reason.
+Record each answer in `.orc/tmp/{issue}-decisions.md` (a copy of the
+decision record): the row's **Status** becomes `✅ confirmed` when they kept
+the choice, or `🔁 changed to {choice}` — which is a change request for
+step 6.
 
-## 5. Wrap up — the verdict
+## 5. Last changes
 
-Show the final checklist with outcomes:
+Ask with `AskUserQuestion` (header: `Last changes`):
 
+- **Merge it** — only offered when nothing blocks it (see step 7)
+- **Make changes** — free text: what to change
+- **Stop here**
+
+The free text may also say a decision should become a project rule ("make
+decision 3 a rule") — mark that row `📌 rule` (alongside its other status);
+`/orc:learn` picks it up after merge.
+
+If there are change requests — from step 4 or here — run a mini build
+(step 6), then come back and ask this again.
+
+## 6. Mini build
+
+For each batch of change requests:
+
+1. **Implement.** Small, local changes: make them yourself. Anything touching
+   several files or Key Logic: invoke `implementer` per task, as `build` step
+   7 does. Pass the mockups if a page changes.
+2. **Test.** Add or update tests for the changed behavior; each new test must
+   fail against the code before the change (check by stashing the change, as
+   `build` step 9 does against base). Run focused verification on everything
+   touched.
+3. **Commit and push** — `fix(#{issue}): {change}`.
+4. **Review the delta.** Run `review-correctness` and `review-quality` (plus
+   `review-security` on a high-risk spec) on `git diff {sha before}..HEAD`,
+   passing the spec and the decision record. Invoke `finding-verifier` on each
+   BLOCKER or WARNING. Fix the ones with one right answer; ask about the rest
+   in the next step-4 round.
+5. **Update the PR** with `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert`:
+   the decision record (`<!-- orc:decisions -->`, with statuses and any new
+   decisions), the criteria ledger (`<!-- orc:criteria -->`) if a criterion's
+   proof changed, and the AI review comment's `sha:` and verdict
+   (`<!-- orc:ai-review`). Re-run `deploy-risk-scanner` if the change touched a
+   migration, job, env var, or contract, and update `<!-- orc:deploy -->` —
+   to `None needed.` if the notes no longer apply. A deploy notes comment
+   reading `None needed.` counts as no deploy steps in the summary and merge
+   report.
+6. **Report** in ≤ 4 bullets: what changed, the tests, the review result.
+
+A change that undoes or reshapes the spec itself (new scope, a different
+approach) isn't a last change — say so and suggest `/orc:plan {issue}` instead.
+
+## 7. Merge
+
+Before offering **Merge it**, all of these must hold:
+
+- CI green — `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checks {pr} --watch --timeout 900`
+  (re-check now; a mini build pushed new commits)
+- mergeable
+- AI review verdict not BLOCK
+- no required criterion ❌ not met
+- no unanswered low-confidence row
+- no unresolved PR comment (re-check `pr-threads` — Copilot reviews again
+  after a push)
+
+If any fails, say exactly which in one line and offer **Make changes** /
+**Stop here** only.
+
+Before merging, post the final decision record (statuses included) with
+`comment-upsert` — `/orc:learn` reads it later. Then, only on an explicit
+**Merge it**:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-merge {pr} --delete-branch
 ```
-- [x] 📋 Asked and summary
-- [x] 🧭 Approach
-- [~] ⚖️ Decision: retry at the client — change requested
-- [x] ✅ Criteria and testing
-- [x] 📁 Files and tricky code
-- [-] 🏁 Verdict
 
-Changes you asked for:
-1. Move the retry to the caller (sync.ts) so batch jobs can opt out
-```
+Report in one line. If the PR has deploy notes, end with: `🚀 Deploy notes:
+{n} step(s) on the PR — run them with this deploy.`
 
-Then ask for the verdict with `AskUserQuestion`:
+**Related issues.** If the issue body says `Part of #{parent}`, update the
+parent's build plan: read its body (`gh-rest issue-view {parent}`), tick
+`- [ ] #{issue}` → `- [x] #{issue}`, and save it (`gh-rest issue-edit
+{parent} --body-file …`). If every box is now ticked, close the parent
+(`gh-rest issue-close {parent}`). Otherwise list the siblings this merge
+unblocked — open sub-issues (`gh-rest issue-subs {parent}`) whose blockers
+(`gh-rest issue-blockers {n}`) are all closed — as `Can start now: #{n} —
+{title}`, each in its own session.
 
-- **Change requests recorded** → no merge option. Offer **Make these changes now** / **Stop here**. On yes,
-  make them, then offer a short walkthrough of just the new changes. A change that overrides an applied rule
-  or a recorded decision also updates `.orc/decisions/` — settle it as
-  `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md` describes.
-- **No change requests**, and CI is green, the review verdict is not BLOCK, and no open items remain →
-  **Squash-merge it** / **Not yet**. Only on **Squash-merge it**, run `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-merge {pr}` and report
-  the result in one line. Never merge on anything weaker than that explicit choice.
-- **No change requests, but something blocks the merge** (red CI, BLOCK verdict, open item) → say exactly
-  what in one line and offer **Stop here**. Never offer to merge past it.
-- **No PR** → one line: nothing to change. No merge step.
+## Rules
 
-Write nothing to disk.
-
-## Behavior rules
-
-- One item per turn. Never present the whole walkthrough at once — that is the wall of text this skill
-  exists to avoid.
-- ≤ 6 bullets per item. An item that needs more is two items.
-- Only claims you can back with the decision log, the spec, git, the code, or the session. Label inferences.
-- Every item gets discussed or explicitly skipped — none silently dropped.
-- No code changes during the walkthrough unless the senior says to do it now.
-- Nothing leaves the session except an explicitly confirmed squash-merge: no comments, no posts.
+- Never merge without the explicit **Merge it** choice.
+- Never ask about something high-confidence or already fixed; never pad.
+- Every claim backed by the decision record, the spec, git, or the code.
+  Label inferences.
+- Nothing is posted except replies to PR comments, the orc comment updates
+  in steps 6–7, and the merge.

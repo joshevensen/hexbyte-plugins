@@ -4,7 +4,7 @@ description: Wire a repo for orc — labels, .orc directory, CLAUDE.md verificat
 model: sonnet
 ---
 
-The day-to-day loop (`create`, `plan`, `build`, `resume`, `push`, `list`)
+The day-to-day loop (`create`, `plan`, `build`, `walkthru`)
 self-provisions its own labels — each defensively ensures a bare (`gh-rest label-ensure`)
 version of any `status:*` label right before it's first needed — and needs no
 setup to work in a fresh repo. That self-provisioning is intentionally minimal
@@ -22,8 +22,7 @@ reliably done as one command than a manual checklist — most importantly the
 — `CLAUDE.md` sections, the PR template, `CHANGELOG.md`, `dependabot.yml`,
 `.orc/` — since previewing exactly those files is the point, and none of it
 is pushed. Pass `--dry-run` through to both label scripts in step 2 (they
-support it directly and print what would change instead of writing labels). Skip step 8 entirely — nothing gets committed, pushed, or handed to
-`/util:push`. End with:
+support it directly and print what would change instead of writing labels). Skip step 8 entirely — nothing gets committed or pushed. End with:
 ```
 DRY RUN — files written for review: {list}. Labels: see step 2 output above.
 Nothing committed or pushed. Re-run without --dry-run to commit and open a PR.
@@ -81,7 +80,7 @@ one inferred and confirmed with the user before applying.
 ### 3. `.orc/` directory
 
 ```bash
-mkdir -p .orc/tmp .orc/decisions
+mkdir -p .orc/tmp
 ```
 
 `.orc/tmp/` holds scratch specs `plan` writes before posting them to an issue.
@@ -90,30 +89,13 @@ mkdir -p .orc/tmp .orc/decisions
 tmp/
 ```
 
-`.orc/decisions/` is **committed** — it's the repo's memory of how decisions
-were made (`orc`'s `templates/decisions.md`). Create each file only if it's
-missing; never overwrite one that has entries:
-
-`.orc/decisions/made.md`
-```markdown
-# Decisions made
-
-Decisions confirmed so far, one section per situation. `orc` appends here and
-promotes a choice to `resolved.md` once three different issues chose it the
-same way. Nothing reads this file to decide anything.
-```
-
-`.orc/decisions/resolved.md`
-```markdown
-# Decisions resolved
-
-Rules `orc` applies instead of asking. `plan` and `build` read this whole file
-at the start of every run. Edit or delete a rule here to change what orc does.
-```
+`.orc/mockups/` (created by `orc:plan` when a change touches UI) is
+**committed** with each issue's branch — don't gitignore it.
 
 **Migration:** if the root `.gitignore` or `.orc/.gitignore` still lists old
 entries (`.orc/tasks`, `.orc/features`, `.orc/QUEUE.md`, a wholesale `.orc`),
-remove them. If a `.orc/features/` directory exists from a prior orc version,
+remove them. If `.orc/decisions/` exists from orc before 0.15, leave it —
+`/orc:learn` folds it into `CLAUDE.md` and removes it. If a `.orc/features/` directory exists from a prior orc version,
 note it to the user — features are gone; those docs are no longer read.
 
 ### 4. `CLAUDE.md` verification sections
@@ -194,9 +176,25 @@ If nothing was created or modified locally, skip to step 9 — GitHub-only chang
 git status --short
 ```
 
-Stage only files this setup run touched, then hand off to `/util:push` with the
-message `chore: configure orc` to commit, review, and open the PR. Merge it
-yourself.
+Stage only files this setup run touched, commit them on a branch, and open a
+PR. Merge it yourself.
+
+Pick the branch without asking: the session's own branch if the current
+branch isn't the default one and holds no other work (`git log --oneline
+origin/main..HEAD` empty); otherwise a new `orc/setup` created from where you
+are, which carries the uncommitted files with it.
+
+```bash
+git switch -c orc/setup        # only when not using the session branch
+git add {files this run touched}
+git commit -m "chore: configure orc"
+git push -u origin {branch}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find {branch} open   # reuse it if one exists
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "chore: configure orc" --body "Configures this repo for orc (labels, .orc/, CLAUDE.md verification sections, PR template, CHANGELOG, dependabot)."   # only if none
+```
+
+If the working tree already had changes before setup ran, stage only setup's
+files and leave the rest alone.
 
 ### 9. Report
 

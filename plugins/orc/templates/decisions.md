@@ -1,88 +1,72 @@
-# Decisions memory
+# Decision record
 
-Orc learns what to choose when several answers are correct. Decisions you
-confirm are recorded in the repo; once you've chosen the same way three times,
-the choice becomes a rule that `plan` and `build` apply instead of asking.
+How orc records the choices it makes, so the engineer can see them and
+`/orc:learn` can turn the recurring ones into project instructions. There is
+no decisions file in the repo — the record lives on GitHub, next to the work.
 
-Two files in the repo, committed with the work:
+## Where it lives
 
-- `.orc/decisions/made.md` — decisions seen, with a count. Never read to decide
-  anything.
-- `.orc/decisions/resolved.md` — rules. `plan` and `build` read it in full at
-  the start of every run.
+- **`plan`** — in the spec's `### Decisions` table, on the issue.
+- **`build` and `walkthru`** — in one **Decisions comment on the PR**, created
+  when the draft PR opens and edited in place as work lands. The PR exists
+  from just after branching, so this is the normal home.
+- **No PR** (a dry run, or a gate before the PR opened) — the same comment on
+  the issue instead.
 
-Both are created by `/util:setup`. If one is missing, treat it as empty and
-create it when you first need to write to it.
+The comment is posted and updated with
+`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert {pr} "<!-- orc:decisions -->" --body-file .orc/tmp/{number}-decisions.md`.
+Keep the working copy at `.orc/tmp/{number}-decisions.md`; the comment is
+the durable one. If the working copy is missing (new container), read the
+comment back before editing it.
 
 ## What counts as a decision
 
-A choice between real alternatives that **could come up again in another
-issue**: which library or pattern, where something lives, how errors are
-handled, how a test is shaped. Skip anything specific to this issue's feature,
-departures from the spec, constraints, and assumptions.
+A choice between real alternatives that a reviewer couldn't see from the
+diff: which pattern or library, where something lives, how errors are
+handled, how a test is shaped, a departure from the spec, a review finding
+accepted rather than fixed. Skip anything obvious or forced by the spec, the
+codebase, or `CLAUDE.md`. An empty table is fine for a mechanical change.
 
-A decision is **confirmed** when you answered the question, or when orc chose
-and the PR was reviewed and merged. Record from the final state of the work: if
-the walkthrough changed a choice, record the changed choice.
+## Confidence
 
-## Formats
+Every decision carries one:
 
-`made.md` — one section per situation, one line per issue it came up in:
+- **high** — the evidence settles it: an existing repo pattern, the spec, a
+  `CLAUDE.md` rule, a test, a hard constraint. Name the evidence.
+- **low** — a reasonable senior could choose the other way, or the choice
+  rests on an assumption. Name what would change your mind.
+
+Never mark a decision high to avoid a question. A departure from the spec is
+always **low** unless the engineer already approved it.
+
+`build` asks about a low-confidence decision **during the build** only when
+the answer changes work that hasn't been done yet (a later wave builds on
+it). Every other low-confidence decision waits for `/orc:walkthru`, which
+asks about low-confidence rows and nothing else.
+
+## Format
 
 ```markdown
-## {situation — one specific line, so unrelated decisions don't merge}
-- {choice} — #{issue} — {why}
+<!-- orc:decisions -->
+## ⚖️ Decisions
+
+| # | Where | Decision | Options | Chose | Confidence | Why | Status |
+|---|---|---|---|---|---|---|---|
+| 1 | `app/Jobs/Import.php:40` | Where the retry lives | job · caller | job | high | every other job retries itself (`app/Jobs/Sync.php:22`) | |
+| 2 | `resources/js/pages/Setup.tsx` | Empty-state copy | spec wording · shorter | shorter | low | spec wording wrapped on mobile; would keep spec wording if it must match the email | |
+
+**Constraints found**
+- {something in the codebase that shaped the work, and where}
+
+**Review**
+- accepted: `{file}:{line}` — {finding} — because {reason}
+- fixed: {finding} — {what changed}
+
+**Deploy notes** → see the Deploy notes comment, if any.
 ```
 
-`resolved.md` — one section per rule:
-
-```markdown
-## {situation}
-- applies when: {area, paths, or conditions}
-- choose: {the choice}
-- why: {the reason}
-- from: #{issue}, #{issue}, #{issue}
-```
-
-## Recording
-
-For each decision in the work (situation S, choice C, why W, issue #n), match S
-against the section headings by meaning, not by wording:
-
-1. **Matches a rule in `resolved.md`:**
-   - C is the rule's choice → nothing to record.
-   - C differs → *settle it* (below) with the rule as the earlier answer.
-2. **Matches a section in `made.md`:**
-   - Add `- C — #n — W` unless #n is already there.
-   - Another line has a different choice → *settle it*.
-   - Otherwise, if three different issues now chose C → **promote**: remove the
-     section from `made.md`, add the rule to `resolved.md` with `from:` listing
-     the three, and report `📌 New rule: {situation} → {choice}`. No question —
-     three of the same is enough.
-3. **No match:** add a new section to `made.md`.
-
-## Settle it
-
-Different answers mean you need to make up your mind. Ask, with
-`AskUserQuestion`: *For {S} you chose {A} (#…) and now {B} (#…). Which is the
-rule?*
-
-- **{A} is the rule** / **{B} is the rule** → write it to `resolved.md`
-  (replacing the old rule if there was one), `from:` listing every issue that
-  chose it, and remove the section from `made.md`.
-- **It depends on…** → ask what it depends on, one line. Split the situation
-  into two sections, each naming that factor, assign the existing lines to the
-  side they belong to, and let each side count again from there.
-- **Just this once** (offered only against a resolved rule) → keep the rule as
-  is and record nothing.
-
-Never promote a situation that has two different answers without asking.
-
-## Applying
-
-Before you ask a question or choose between alternatives, check
-`resolved.md`. On a **clear** match — the same situation, and the rule's
-*applies when* holds — apply it and don't ask. Log `- applied: {situation} —
-{choice}` in the decision log (`plan`: a line in the spec's Design Rationale).
-If the match isn't clear, ask as usual. A rule never overrides the spec or an
-explicit instruction in the issue.
+- **Status** is empty until the engineer acts: `✅ confirmed`, `🔁 changed to
+  {choice}`, and `📌 rule` when they ask for the choice to become a project
+  rule. `/orc:walkthru` writes these.
+- Plan's spec uses the same columns minus **Where** and **Status**.
+- Escape a literal `|` inside a cell as `\|`.

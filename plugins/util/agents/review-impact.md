@@ -1,6 +1,6 @@
 ---
 name: review-impact
-description: Invoked during the build/push review step. Checks for breaking changes to public interfaces, unexpected side effects, performance regressions, and database query changes.
+description: Invoked during the orc build and walkthru review steps (and util bump). Checks for breaking changes to public interfaces, unexpected side effects, performance regressions, and database query changes.
 tools: Read, Grep, Glob
 model: sonnet
 ---

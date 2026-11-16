@@ -1,14 +1,12 @@
 # util
 
-Companion utility skills for the [`orc`](../orc) pipeline: a quick
-commit/review/PR path for changes made outside `create`/`plan`/`build`,
-Dependabot triage, an issue-status view, and repo scaffolding. Split out of
+Companion utility skills for the [`orc`](../orc) pipeline: Dependabot triage
+and repo scaffolding. Split out of
 `orc` so that plugin stays focused on the create → plan → build pipeline
 itself.
 
-Part of the `hexbyte` marketplace. Install alongside `orc` — `list` and
-`setup` operate on the same GitHub issues and labels `orc` manages, and
-`push`/`bump` run the same AI review `orc:build` folds in.
+Part of the `hexbyte` marketplace. Install alongside `orc` — `setup` wires a repo for the issues and labels `orc`
+manages, and `bump` reuses two of its review agents.
 
 ### Install — Claude Code CLI (local)
 
@@ -50,39 +48,29 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 
 | Skill | What it does |
 |---|---|
-| `/util:push` | Commit working-tree changes → review → push → open PR (no merge). For changes made directly in conversation that don't warrant a full `orc:create` + `orc:build` cycle |
 | `/util:bump` | Review open Dependabot grouped PRs for security and breaking changes, then merge if safe |
-| `/util:list` | List open orc-managed issues, optionally filtered by status |
 | `/util:setup` | Scaffold a repo for orc — labels, `.orc/`, `CLAUDE.md` sections, PR template, CHANGELOG, dependabot. Idempotent — safe to re-run |
 
 ## Why a separate plugin
 
-`orc`'s own skills (`create`, `plan`, `do`, `build`, `resume`, `respond`,
-`discuss`, `explain`) are the pipeline itself — the thing that turns an issue
-into a reviewed PR. `push`, `bump`, `list`, and `setup` are useful around that
-pipeline but don't drive it: `push` is a shortcut for work that skipped the
-pipeline entirely, `bump` handles a different kind of PR (Dependabot's, not
-`build`'s), `list` is a read-only status view, and `setup` is one-time-ish
-scaffolding. Keeping them in a separate plugin keeps `orc` scoped to running
-builds, and lets either plugin version and release independently.
+`orc`'s skills (`create`, `plan`, `build`, `walkthru`, `status`, `learn`,
+`discuss`) are the pipeline itself. `bump` and `setup` are useful around it
+but don't drive it: `bump` handles Dependabot's PRs, not `build`'s, and
+`setup` is one-time scaffolding. Keeping them separate lets each plugin
+version and release independently.
 
 ## Shared agents
 
-`push` and `bump` run the same AI review agents `orc:build`/`orc:resume` use
-(`review-correctness`, `review-security`, `review-quality`, `review-impact`,
-`deploy-risk-scanner`, `ci-debugger`, `conflict-classifier`) and the same
-`ai-review.md` template. Each plugin's agents are resolved from its own
-`agents/` directory, so those files are duplicated here rather than shared
-across the plugin boundary — keep both copies in sync if you change one.
+`bump` uses `review-security`, `review-impact`, and `ci-debugger`. Each
+plugin's agents resolve from its own `agents/` directory, so those three are
+copied here from `orc` — keep them in sync if you change one.
 
 ## `--dry-run`
 
-`push`, `bump`, and `setup` accept a trailing `--dry-run`. Local git commits
-and local file writes still happen — so you can inspect real output with
-`git log`/`git diff` — but `git push` and every GitHub-mutating `gh` call
-(issue/PR/label create, edit, comment, merge) are skipped and printed
-instead. Each skill documents its exact boundary at the top of its
-`SKILL.md`. `list` is read-only and has no `--dry-run` of its own.
+`bump` and `setup` accept a trailing `--dry-run`. Local file writes still
+happen, but `git push` and every GitHub-mutating `gh` call are skipped and
+printed instead. Each skill documents its exact boundary at the top of its
+`SKILL.md`.
 
 ## Versioning
 

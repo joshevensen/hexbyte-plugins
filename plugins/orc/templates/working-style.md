@@ -51,11 +51,12 @@ next step ready ends by offering it.
 
 | When this finishes | Offer |
 |---|---|
-| `create` | `/orc:plan` on the issue (several issues: the first, and name the rest — each gets its own session) |
+| `create` | `/orc:plan` on the first issue that can start now (name the rest — each gets its own session) |
 | `plan`, status `ready` | `/orc:build` |
-| `build`, `resume`, or `do`, CI green and mergeable | `/orc:walkthru` |
-| `respond` | `/orc:resume` |
-| `walkthru`, `plan` still draft, any gate, any dry run | nothing |
+| `build`, PR ready for review | `/orc:walkthru` |
+| `discuss`, settled on concrete work | `/orc:create` |
+| `status` | its own options (see that skill) |
+| `walkthru`, `learn`, `plan` still draft, any gate, any dry run | nothing |
 
 - **The last line of the message**, nothing after it:
   `➡️ Next: /orc:plan #12 — continue?`
