@@ -23,7 +23,9 @@ Before writing anything, list every behavior the spec requires: each acceptance 
 3. Test observable behavior — inputs, outputs, side effects, responses — never private structure or call order. If a criterion can only be tested through an interface the spec doesn't define, stop and report it instead of inventing the interface.
 4. Do not run the tests. The code they exercise may not exist yet; build runs them once implementation is done.
 5. If the spec's criteria are verified by commands or observable outcomes rather than tests, or the repo has no test framework, write nothing and say so.
-6. Touch nothing outside your owned test files.
+6. **`[e2e]` criteria** get a feature test that drives the flow through the app's real entry point (an HTTP request, a console command, a dispatched job) and asserts on what a user or caller would observe — not a unit test of one class with its collaborators faked. Fake only what leaves the app (third-party HTTP, mail, payment gateways).
+7. **`[optional]` criteria** are run by build as commands; don't write tests for them.
+8. Touch nothing outside your owned test files.
 
 ## Gap-fill mode
 

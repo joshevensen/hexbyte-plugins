@@ -2,6 +2,12 @@
 
 Tracks the `ink` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.1.2]
+
+### Changed
+- `scripts/gh-rest` synced with orc's copy (adds `comment-upsert` and
+  `pr-merged-list`); no change to ink's own behavior
+
 ## [0.1.1]
 
 ### Fixed

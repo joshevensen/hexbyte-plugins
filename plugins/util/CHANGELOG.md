@@ -2,6 +2,16 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.4.0]
+
+### Changed
+- `setup` no longer creates `.orc/decisions/` — orc 0.15 replaced the
+  decisions memory with a Decisions comment on each PR and `/orc:learn`. An
+  existing `.orc/decisions/` is left for `/orc:learn` to fold in
+- `scripts/gh-rest` gains `comment-upsert` and `pr-merged-list` (kept in sync
+  with orc's copy)
+- References to the removed `/orc:resume` now point at `/orc:walkthru`
+
 ## [0.3.2]
 
 ### Fixed

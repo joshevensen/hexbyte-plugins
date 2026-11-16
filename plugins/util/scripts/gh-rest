@@ -31,6 +31,10 @@
 #   issue-create --title T (--body B | --body-file F) [--label L]...   -> {number,url}
 #   issue-edit <n> [--add-label L]... [--remove-label L]... [--body-file F]
 #   issue-comment <n> (--body B | --body-file F)
+#   comment-upsert <n> <marker> (--body B | --body-file F)
+#                                     edit the issue/PR comment whose body starts with <marker>, or post it
+#   pr-merged-list [--label L] [--limit N]
+#                                     merged PRs, newest first; --label L keeps only PRs WITHOUT label L
 #   label-ensure <name> [color]       create the label if missing
 #
 # Commands that GitHub only exposes through GraphQL (ready-for-review, review
@@ -182,6 +186,27 @@ case "$CMD" in
     parse_common "$@"
     [[ -n "$BODY_SET" ]] || die "$CMD needs --body or --body-file"
     jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/$n/comments" --input - --jq '.html_url'
+    ;;
+
+  comment-upsert)
+    n="${1:?number}"; marker="${2:?marker}"; shift 2
+    parse_common "$@"
+    [[ -n "$BODY_SET" ]] || die "comment-upsert needs --body or --body-file"
+    cid=$(rapi "issues/$n/comments" --paginate --jq '.[] | {id, body}' \
+      | jq -rs --arg m "$marker" '[.[] | select((.body // "") | startswith($m))][0].id // empty')
+    if [[ -n "$cid" ]]; then
+      jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/comments/$cid" -X PATCH --input - --jq '.html_url'
+    else
+      jq -n --arg b "$BODY" '{body: $b}' | rapi "issues/$n/comments" --input - --jq '.html_url'
+    fi
+    ;;
+
+  pr-merged-list)
+    parse_common "$@"
+    rapi pulls -X GET --paginate -f state=closed -f sort=updated -f direction=desc -f per_page=100 \
+      --jq '.[] | select(.merged_at) | {number, title, merged_at, labels: [.labels[].name], body: (.body // "")}' \
+      | jq -s --arg l "$LABEL" --argjson n "$LIMIT" \
+          'map(select($l == "" or (.labels | index($l) | not))) | sort_by(.merged_at) | reverse | .[:$n]'
     ;;
 
   pr-comments)

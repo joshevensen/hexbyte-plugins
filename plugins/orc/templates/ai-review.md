@@ -3,10 +3,9 @@ Posted as a PR comment via `gh-rest pr-comment` — never folded into the PR
 description. The marker line must be the literal first line, with the full
 commit SHA review ran against (after any auto-fixes are committed) and the
 overall verdict: BLOCK if any BLOCKER remains, WARNING if any WARNING remains,
-otherwise PASS. `resume` reads this marker to decide whether a review already
-on the PR is still fresh (SHA matches current HEAD) or stale (HEAD has moved —
-something changed since, so re-review) — do not omit it or reorder it after
-the fact.
+otherwise PASS. `walkthru` reads this marker for the verdict and to tell
+whether the review covers the current HEAD — do not omit it or reorder it
+after the fact.
 
 Organize by what the reader needs to do, not by which agent found it:
 - Merge duplicate findings across agents into one line.
@@ -18,11 +17,11 @@ Organize by what the reader needs to do, not by which agent found it:
   "Needs you" too.
 - WARNINGs without a specific line go under "Needs you".
 - One line per item: where, what, why it matters. No prose.
-- "Clean" lists the areas (correctness, security, quality, impact, deploy)
-  with no remaining findings.
+- "Clean" lists the areas reviewed (by path: correctness and quality for S;
+  plus security and impact for M and L) with no remaining findings. Deploy
+  steps are not findings — they go in the separate Deploy notes comment.
 - The hidden `orc:warnings` block lists every remaining WARNING, one per
-  line, line-specific ones included — `resume` reads it to post inline
-  context when it trusts this review instead of re-running it. Leave it empty
+  line, line-specific ones included — `walkthru` reads it. Leave it empty
   when there are none; never omit it.
 - Omit any headline part that's zero, the "Needs you" section when empty, and
   the details block when nothing was auto-fixed. A clean review is the marker,

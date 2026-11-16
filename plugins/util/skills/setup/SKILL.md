@@ -4,7 +4,7 @@ description: Wire a repo for orc — labels, .orc directory, CLAUDE.md verificat
 model: sonnet
 ---
 
-The day-to-day loop (`create`, `plan`, `build`, `resume`, `push`, `list`)
+The day-to-day loop (`create`, `plan`, `build`, `walkthru`, `push`, `list`)
 self-provisions its own labels — each defensively ensures a bare (`gh-rest label-ensure`)
 version of any `status:*` label right before it's first needed — and needs no
 setup to work in a fresh repo. That self-provisioning is intentionally minimal
@@ -81,7 +81,7 @@ one inferred and confirmed with the user before applying.
 ### 3. `.orc/` directory
 
 ```bash
-mkdir -p .orc/tmp .orc/decisions
+mkdir -p .orc/tmp
 ```
 
 `.orc/tmp/` holds scratch specs `plan` writes before posting them to an issue.
@@ -90,30 +90,13 @@ mkdir -p .orc/tmp .orc/decisions
 tmp/
 ```
 
-`.orc/decisions/` is **committed** — it's the repo's memory of how decisions
-were made (`orc`'s `templates/decisions.md`). Create each file only if it's
-missing; never overwrite one that has entries:
-
-`.orc/decisions/made.md`
-```markdown
-# Decisions made
-
-Decisions confirmed so far, one section per situation. `orc` appends here and
-promotes a choice to `resolved.md` once three different issues chose it the
-same way. Nothing reads this file to decide anything.
-```
-
-`.orc/decisions/resolved.md`
-```markdown
-# Decisions resolved
-
-Rules `orc` applies instead of asking. `plan` and `build` read this whole file
-at the start of every run. Edit or delete a rule here to change what orc does.
-```
+`.orc/mockups/` (created by `orc:plan` when a change touches UI) is
+**committed** with each issue's branch — don't gitignore it.
 
 **Migration:** if the root `.gitignore` or `.orc/.gitignore` still lists old
 entries (`.orc/tasks`, `.orc/features`, `.orc/QUEUE.md`, a wholesale `.orc`),
-remove them. If a `.orc/features/` directory exists from a prior orc version,
+remove them. If `.orc/decisions/` exists from orc before 0.15, leave it —
+`/orc:learn` folds it into `CLAUDE.md` and removes it. If a `.orc/features/` directory exists from a prior orc version,
 note it to the user — features are gone; those docs are no longer read.
 
 ### 4. `CLAUDE.md` verification sections

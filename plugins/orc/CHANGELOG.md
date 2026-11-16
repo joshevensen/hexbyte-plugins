@@ -2,6 +2,66 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.15.0]
+
+Rebalances the pipeline toward planning: the engineer's effort goes into
+`plan`, `build` runs on its own, and `walkthru` asks only about what orc
+wasn't sure of.
+
+### Added
+- `/orc:learn` — reads the Decisions comment on merged PRs not yet labelled
+  `orc:learned`, proposes `CLAUDE.md` rules for decisions that recur across
+  PRs or that were tagged as rules in a walkthrough, flags stale rules, and
+  opens a PR with the approved edits. Folds in legacy `.orc/decisions/` files
+- `plan` challenges the idea before choosing an approach, traces the user
+  flows the change touches, rates **Size** (S/M/L) and **Risk** (low/high),
+  mocks up every changed page, and ends with the engineer's approval of a
+  one-screen summary before posting the spec
+- Interactive, responsive mockups (`templates/mockup.html`): self-contained
+  HTML in the app's theme with a phone/tablet/desktop toggle, state switcher,
+  and change highlighting. Written to `.orc/mockups/{issue}/`, shown in the
+  session, committed to the issue branch, passed to implementers
+- Spec criteria tags: `[e2e]` (one per touched user flow, required for M and
+  L) and `[optional]` (run when the environment allows, never gates)
+- Decision confidence (high/low) everywhere decisions are recorded
+- `build` posts a **criteria ledger** (each criterion with its proof), a
+  **Decisions** comment (updated per wave), and **Deploy notes** when a
+  deploy needs steps
+- `gh-rest comment-upsert` and `gh-rest pr-merged-list`
+
+### Changed
+- `build` picks its verification depth from Size and Risk: implementers,
+  coverage and break checks, gap-fill rounds, review agents, and PR context
+  all scale. High risk always takes the full path
+- `build` asks only when an answer changes work not yet done. Review findings
+  with one right fix are fixed; the rest become low-confidence decisions for
+  the walkthrough instead of end-of-build questions
+- `build` no longer watches CI or checks mergeability, and marks the PR ready
+  at the end. It opens the draft PR at its first push
+- `walkthru` rewritten: checks and fixes CI and conflicts first, shows a
+  one-screen summary, asks only about low-confidence decisions, unmet
+  criteria, and open findings, then takes last changes through a **mini
+  build** (implement, test, push, re-review the delta, update the PR
+  comments) before squash-merging on an explicit yes. Runs on `opus`. No
+  longer takes topics, commit ranges, or `--uncommitted`
+- `deploy-risk-scanner` writes deploy notes instead of a risk level; nothing
+  it finds blocks. Destructive data changes become a walkthrough question
+- `plan` runs on `opus`; `spec-writer` builds on plan's research instead of
+  repeating it, and scales the spec to its size
+- `spec-critic` also checks end-to-end coverage and the risk rating
+- `implementer` takes mockups and reports options and confidence per decision
+- `do` stops before build when plan rates the work above S or high risk
+
+### Removed
+- `/orc:resume` — its CI, mergeability, and review-resolution work moved to
+  `walkthru`
+- The decisions memory: `.orc/decisions/made.md`, `resolved.md`, automatic
+  promotion, and the "settle it" prompts. `/orc:learn` replaces them
+- The hidden `orc:decisions` block in the PR body, and `walkthru`'s session
+  log extractor
+- The spec's Design Rationale section — rejected options live in its
+  Decisions table
+
 ## [0.14.1]
 
 ### Fixed

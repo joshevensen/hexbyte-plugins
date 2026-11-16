@@ -57,8 +57,8 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 
 ## Why a separate plugin
 
-`orc`'s own skills (`create`, `plan`, `do`, `build`, `resume`, `respond`,
-`discuss`, `explain`) are the pipeline itself — the thing that turns an issue
+`orc`'s own skills (`create`, `plan`, `do`, `build`, `walkthru`, `learn`,
+`respond`, `discuss`, `explain`) are the pipeline itself — the thing that turns an issue
 into a reviewed PR. `push`, `bump`, `list`, and `setup` are useful around that
 pipeline but don't drive it: `push` is a shortcut for work that skipped the
 pipeline entirely, `bump` handles a different kind of PR (Dependabot's, not
@@ -68,7 +68,7 @@ builds, and lets either plugin version and release independently.
 
 ## Shared agents
 
-`push` and `bump` run the same AI review agents `orc:build`/`orc:resume` use
+`push` and `bump` run the same AI review agents `orc:build`/`orc:walkthru` use
 (`review-correctness`, `review-security`, `review-quality`, `review-impact`,
 `deploy-risk-scanner`, `ci-debugger`, `conflict-classifier`) and the same
 `ai-review.md` template. Each plugin's agents are resolved from its own

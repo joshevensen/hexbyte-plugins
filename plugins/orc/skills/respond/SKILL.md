@@ -9,8 +9,8 @@ Follow `${CLAUDE_PLUGIN_ROOT}/templates/working-style.md` for how you behave and
 `respond` only acts when you run it — nothing subscribes to webhooks or polls
 in the background. It walks every unresolved comment on the PR — yours and
 everyone else's — implements, commits, pushes, and stops — no CI check, no
-mergeability check, no merge. Use `resume` for CI/mergeability once the
-comments are settled, and merge the PR yourself.
+mergeability check, no merge. Run `/orc:walkthru` once the comments are
+settled — it checks CI and mergeability and merges on your yes.
 
 **Comments authored by you are instructions, not suggestions.** Treat each
 one as a direct order to carry out — implement it (or answer it) exactly as
@@ -176,4 +176,4 @@ PR #{pr}: {n} implemented and pushed, {m} answered, {d} declined with reason,
 ```
 
 End with the next-step line from `working-style.md`:
-`➡️ Next: /orc:resume #{issue-number} — continue?` (CI and mergeability).
+`➡️ Next: /orc:walkthru #{pr} — continue?`

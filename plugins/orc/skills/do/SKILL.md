@@ -61,22 +61,21 @@ a single simple task:
 
 ### 2. Plan (unabridged)
 
-Follow `${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md` steps 1-5 in full against
-`{number}` — the codebase research and the spec's open-question gate don't
-shrink for "simple," since a weak spec here undermines the confidence check
-`build` runs next.
+Follow `${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md` steps 1-8 in full against
+`{number}` — the research, the idea check, the open-question gate, and the
+engineer's approval don't shrink for "simple," since a weak spec here
+undermines the build that runs next.
 
-If the resulting spec needs several files or waves, or its touchpoints are
-genuinely uncertain, stop here and tell the user to continue by hand with
-`/orc:build {number}` — it's no longer the one-wave case `do` is for.
+If plan sizes the work above **S** or rates it **high** risk, or its
+touchpoints are genuinely uncertain, stop here and tell the user to continue
+by hand with `/orc:build {number}` — it's no longer the case `do` is for.
 Otherwise continue straight to step 3.
 
 ### 3. Build (unabridged)
 
 Follow `${CLAUDE_PLUGIN_ROOT}/skills/build/SKILL.md` in full, unmodified,
-against `{number}`. Nothing about `build` changes for a simple issue — its
-gates and dependency-ordered waves already handle a one-file, one-wave change
-correctly. `do`'s only value is not stopping between stages, never weakening
+against `{number}`. It takes its S path from the spec's Size and Risk — `do`
+doesn't pick a lighter one. `do`'s only value is not stopping between stages, never weakening
 what any stage checks.
 
 ### 4. Report
@@ -84,7 +83,7 @@ what any stage checks.
 If all three stages completed:
 ```
 #{number} — {title}
-{build's own step-14 report, ending with its next-step line}
+{build's own step-15 report, ending with its next-step line}
 ```
 
 If it stopped early — a split was needed in step 1, or step 2 turned out

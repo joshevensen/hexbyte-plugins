@@ -1,6 +1,6 @@
 ---
 name: conflict-classifier
-description: Inspects merge conflict markers in the working tree and classifies each conflicted file as simple (auto-resolvable) or complex (needs human judgment). Invoked by build and push after a rebase surfaces conflicts during their merge-readiness check.
+description: Inspects merge conflict markers in the working tree and classifies each conflicted file as simple (auto-resolvable) or complex (needs human judgment). Invoked by walkthru (or util push) after a rebase surfaces conflicts during its merge-readiness check.
 tools: Bash, Read
 model: sonnet
 ---

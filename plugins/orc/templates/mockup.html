@@ -1,0 +1,122 @@
+<!doctype html>
+<!--
+orc mockup starter. /orc:plan copies this to .orc/mockups/{issue}/{page}.html,
+one file per page the change touches, and fills it in.
+
+Rules:
+- Self-contained: one file, no build step, no app server. Tailwind loads from
+  the CDN below; copy the app's theme tokens (colors, fonts, radii, spacing —
+  e.g. the `@theme` block of the app's main CSS) into the <style type="text/tailwindcss">
+  block in PAGE_HEAD so the mockup looks like the app, not a generic page.
+- Reuse the app's real component markup and class names where they exist
+  (copy them from the components the page will use).
+- Realistic content from the domain, never lorem ipsum.
+- Interactive: every control the change adds or alters works — tabs switch,
+  modals open, forms show validation and success, menus toggle. Plain JS only.
+- Every state the spec names (empty, loading, error, partial, success) is
+  reachable from the State bar.
+- Mark what changed: wrap changed regions in data-changed so "Highlight
+  changes" can outline them.
+- Do not edit the viewer shell (everything outside the two <template>s)
+  except the title and the STATES list.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{Page name} — mockup for #{issue}</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f4f4f5; --fg:#18181b; --muted:#71717a; --line:#d4d4d8; --accent:#2563eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#18181b; --fg:#fafafa; --muted:#a1a1aa; --line:#3f3f46; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  .bar { position:sticky; top:0; z-index:1; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+         padding:8px 16px; background:var(--bg); border-bottom:1px solid var(--line); }
+  .bar strong { margin-right:auto; }
+  .bar button { font:inherit; padding:4px 10px; border:1px solid var(--line); border-radius:6px;
+                background:transparent; color:var(--fg); cursor:pointer; }
+  .bar button[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); }
+  .bar .sep { width:1px; height:20px; background:var(--line); }
+  .stage { display:flex; justify-content:center; padding:16px; }
+  iframe { width:var(--w,1280px); max-width:100%; height:calc(100vh - 90px); border:1px solid var(--line);
+           border-radius:8px; background:#fff; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <strong>{Page name}</strong>
+  <button data-w="390" aria-pressed="false">Phone</button>
+  <button data-w="768" aria-pressed="false">Tablet</button>
+  <button data-w="1280" aria-pressed="true">Desktop</button>
+  <span class="sep"></span>
+  <span id="states"></span>
+  <span class="sep"></span>
+  <button id="hl" aria-pressed="false">Highlight changes</button>
+</div>
+<div class="stage"><iframe id="view" title="Mockup"></iframe></div>
+
+<template id="PAGE_HEAD">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      /* paste the app's theme tokens here */
+    }
+  </style>
+  <style>.orc-hl [data-changed]{ outline:2px dashed #f59e0b; outline-offset:2px; }</style>
+</template>
+
+<template id="PAGE_BODY">
+  <!-- The page. Use data-state="{name}" on elements that only show in one state. -->
+  <main class="p-6">
+    <section data-changed>
+      <h1 class="text-2xl font-semibold">{Page heading}</h1>
+    </section>
+    <p data-state="empty">Nothing here yet.</p>
+    <p data-state="default">Content.</p>
+  </main>
+  <script>
+    // Page interactions go here.
+  </script>
+</template>
+
+<script>
+  // States the State bar offers; the first is shown initially.
+  const STATES = ["default", "empty"];
+
+  const view = document.getElementById("view");
+  let state = STATES[0], highlight = false;
+
+  function render() {
+    const head = document.getElementById("PAGE_HEAD").innerHTML;
+    const body = document.getElementById("PAGE_BODY").innerHTML;
+    const css = `[data-state]:not([data-state~="${state}"]){display:none!important}`;
+    view.srcdoc = `<!doctype html><html><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width, initial-scale=1">${head}<style>${css}</style></head>` +
+      `<body class="${highlight ? "orc-hl" : ""}">${body}</body></html>`;
+  }
+
+  document.querySelectorAll("[data-w]").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("[data-w]").forEach(x => x.setAttribute("aria-pressed", x === b));
+    view.style.setProperty("--w", b.dataset.w + "px");
+  }));
+
+  const states = document.getElementById("states");
+  STATES.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.textContent = s; b.setAttribute("aria-pressed", i === 0);
+    b.addEventListener("click", () => {
+      state = s;
+      states.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      render();
+    });
+    states.appendChild(b);
+  });
+
+  document.getElementById("hl").addEventListener("click", e => {
+    highlight = !highlight; e.target.setAttribute("aria-pressed", highlight); render();
+  });
+
+  render();
+</script>
+</body>
+</html>

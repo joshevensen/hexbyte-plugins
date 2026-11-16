@@ -53,9 +53,9 @@ next step ready ends by offering it.
 |---|---|
 | `create` | `/orc:plan` on the issue (several issues: the first, and name the rest — each gets its own session) |
 | `plan`, status `ready` | `/orc:build` |
-| `build`, `resume`, or `do`, CI green and mergeable | `/orc:walkthru` |
-| `respond` | `/orc:resume` |
-| `walkthru`, `plan` still draft, any gate, any dry run | nothing |
+| `build` or `do`, PR ready for review | `/orc:walkthru` |
+| `respond` | `/orc:walkthru` |
+| `walkthru`, `learn`, `plan` still draft, any gate, any dry run | nothing |
 
 - **The last line of the message**, nothing after it:
   `➡️ Next: /orc:plan #12 — continue?`
