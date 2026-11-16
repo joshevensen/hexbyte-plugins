@@ -95,7 +95,10 @@ files, then `git push --force-with-lease`.
 
 Every comment gets a reply when it's settled — what was done, or in one or
 two sentences why not — via `gh-rest pr-reply {pr} {first-comment-id}` for a
-thread or `gh-rest pr-comment {pr}` for a conversation comment. Then resolve
+thread or `gh-rest pr-comment {pr}` for a conversation comment. Start every
+reply with `<!-- orc:reply -->` on its own line: replies post under the
+engineer's login, and without the marker a later run would read them as the
+engineer's own instructions. Then resolve
 the thread (`gh-rest pr-resolve {pr} {first-comment-id}`). Never resolve one
 silently. A thread still waiting on the engineer stays open.
 
@@ -192,7 +195,10 @@ For each batch of change requests:
    decisions), the criteria ledger (`<!-- orc:criteria -->`) if a criterion's
    proof changed, and the AI review comment's `sha:` and verdict
    (`<!-- orc:ai-review`). Re-run `deploy-risk-scanner` if the change touched a
-   migration, job, env var, or contract, and update `<!-- orc:deploy -->`.
+   migration, job, env var, or contract, and update `<!-- orc:deploy -->` —
+   to `None needed.` if the notes no longer apply. A deploy notes comment
+   reading `None needed.` counts as no deploy steps in the summary and merge
+   report.
 6. **Report** in ≤ 4 bullets: what changed, the tests, the review result.
 
 A change that undoes or reshapes the spec itself (new scope, a different

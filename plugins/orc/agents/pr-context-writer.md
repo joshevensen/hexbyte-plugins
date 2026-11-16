@@ -1,6 +1,6 @@
 ---
 name: pr-context-writer
-description: Writes the reviewer-facing context for a built PR — a concise PR description plus inline and file-level review comments explaining non-obvious choices, what needs scrutiny, and what can be skimmed. Invoked by /orc:build after review (M and L builds), and by /orc:walkthru after a mini build. Reasons come only from the decision record, never inferred from the diff.
+description: Writes the reviewer-facing context for a built PR — a concise PR description plus inline and file-level review comments explaining non-obvious choices, what needs scrutiny, and what can be skimmed. Invoked by /orc:build after review (M and L builds). Reasons come only from the decision record, never inferred from the diff.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

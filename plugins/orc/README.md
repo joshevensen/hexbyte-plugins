@@ -55,9 +55,8 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:learn` | Every so often: turn decisions that recur across merged PRs (or that you tagged as rules) into `CLAUDE.md` rules, via a PR |
 | `/orc:discuss` | Read-only exploration mode — talk through ideas, or ask what a file, route, or PR does; no changes until you say "green light" |
 
-`/orc:push`, `/orc:bump`, and `/orc:setup` moved to the
-[`util`](../util) plugin — install `util@hexbyte` alongside `orc` to keep
-using them.
+`/util:bump` and `/util:setup` live in the [`util`](../util) plugin — install
+`util@hexbyte` alongside `orc` to use them.
 
 ## The pipeline
 
@@ -173,9 +172,9 @@ it rebuilds from `origin/main` and reuses the PR.
 
 ## `--dry-run`
 
-Every skill that writes to GitHub or pushes (`create`, `plan`, `build`,
-`learn` here, plus `push`/`bump`/`setup` in `util`) accepts a trailing
-`--dry-run`. Local commits and file writes still happen, but `git push` and
+`create`, `plan`, `build`, and `learn` here, plus `bump` and `setup` in
+`util`, accept a trailing `--dry-run`. (`walkthru` doesn't: it acts only on
+your explicit answers.) Local commits and file writes still happen, but `git push` and
 every GitHub-mutating call are skipped and printed instead. Each skill
 documents its exact boundary at the top of its `SKILL.md`.
 

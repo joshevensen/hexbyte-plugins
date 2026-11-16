@@ -19,8 +19,9 @@ becomes an interruption later.
 and approval exactly as normal — the spec goes to the local
 `.orc/tmp/{number}-spec.md` scratch file and mockups to
 `.orc/mockups/{number}/`, both left in place for inspection (skip the `rm` in
-step 8). Skip every `gh-rest issue-edit`/`issue-comment` call and the mockup
-commit. End with:
+step 8). Skip every GitHub write — `gh-rest issue-edit`, `issue-comment`,
+`issue-block`, and the parent's build-plan update — and the mockup commit and
+push; print what each would have done. End with:
 ```
 DRY RUN — spec written to .orc/tmp/{number}-spec.md, not posted.
 {approved — would set status:ready | still open: {what's open}}
@@ -215,13 +216,19 @@ On approval, commit any mockups to the issue's branch so `build` and the PR
 carry them. Resolve `{branch}` as `${CLAUDE_PLUGIN_ROOT}/templates/branch.md`
 describes — no question asked; it's normally the session's own branch. Never
 commit them to the default branch. If `{branch}` isn't the current branch,
-create it from `origin/main` and move the mockups over:
+switch to it and move the mockups over — onto the existing branch if it's
+already on origin (an open PR's branch: never reset it), else a new one from
+`origin/main`:
 
 ```bash
 # only when {branch} isn't the current branch:
 git stash push --include-untracked -- .orc/mockups/{number}/
 git fetch origin main
-git switch -C {branch} origin/main
+if git fetch origin {branch} 2>/dev/null; then
+  git switch -C {branch} origin/{branch}
+else
+  git switch -C {branch} origin/main
+fi
 git stash pop
 # always:
 git add .orc/mockups/{number}/

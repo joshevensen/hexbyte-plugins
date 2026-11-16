@@ -179,13 +179,18 @@ git status --short
 Stage only files this setup run touched, commit them on a branch, and open a
 PR. Merge it yourself.
 
+Pick the branch without asking: the session's own branch if the current
+branch isn't the default one and holds no other work (`git log --oneline
+origin/main..HEAD` empty); otherwise a new `orc/setup` created from where you
+are, which carries the uncommitted files with it.
+
 ```bash
-git fetch origin main
-git switch -c orc/setup origin/main 2>/dev/null || git switch orc/setup
+git switch -c orc/setup        # only when not using the session branch
 git add {files this run touched}
 git commit -m "chore: configure orc"
-git push -u origin orc/setup
-${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "chore: configure orc" --body "Configures this repo for orc (labels, .orc/, CLAUDE.md verification sections, PR template, CHANGELOG, dependabot)."
+git push -u origin {branch}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find {branch} open   # reuse it if one exists
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "chore: configure orc" --body "Configures this repo for orc (labels, .orc/, CLAUDE.md verification sections, PR template, CHANGELOG, dependabot)."   # only if none
 ```
 
 If the working tree already had changes before setup ran, stage only setup's

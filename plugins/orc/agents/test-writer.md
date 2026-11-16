@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Writes tests for a spec's behaviors from the spec alone, without reading the implementation (initial mode), then fills specific coverage gaps build finds (gap-fill mode). Invoked by /orc:build in parallel with the first implementation wave, and again in step 8b.
+description: Writes tests for a spec's behaviors from the spec alone, without reading the implementation (initial mode), then fills specific coverage gaps build finds (gap-fill mode). Invoked by /orc:build in parallel with the first implementation wave, and again in step 9 (gap-fill).
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: opus
 ---

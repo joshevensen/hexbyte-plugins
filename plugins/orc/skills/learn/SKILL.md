@@ -115,18 +115,24 @@ and go to step 6 to label them.
 
 ### 6. Open the PR and label
 
+Pick the branch without asking: the session's own branch if the current
+branch isn't the default one and holds no other work (`git log --oneline
+origin/main..HEAD` empty, no open PR for something else); otherwise a new
+`orc/learn-{YYYYMMDD}` created from where you are, which carries the
+uncommitted edits with it. Apply the approved edits (and `git rm -r
+.orc/decisions` if the legacy files were folded in) before committing:
+
 ```bash
-git fetch origin main
-git switch -C orc/learn-$(date +%Y%m%d) origin/main
-# apply the approved edits; git rm -r .orc/decisions if the legacy files were folded in
+git switch -c orc/learn-$(date +%Y%m%d)      # only when not using the session branch
 git add {edited files}
 git commit -m "docs: learn project rules from merged PRs"
-git push --force-with-lease -u origin orc/learn-$(date +%Y%m%d)
-${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "Learn project rules from {n} merged PR(s)" --body-file .orc/tmp/learn-pr-body.md
+git push -u origin {branch}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-find {branch} open   # reuse it if one exists
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --base main --title "Learn project rules from {n} merged PR(s)" --body-file .orc/tmp/learn-pr-body.md   # only if none
 ```
 
 The PR body lists each rule added, changed, or removed, with its source PRs.
-Skip the branch and PR when nothing was approved.
+Skip the commit and PR when nothing was approved.
 
 Then label every PR collected in step 1 — including ones with nothing to
 learn and ones whose candidates were skipped — so the next run doesn't

@@ -12,7 +12,7 @@
     {
       "name": "util",
       "source": "./plugins/util",
-      "description": "Utility skills for the orc pipeline: quick commit/review/PR, Dependabot triage, issue-status listing, and repo scaffolding."
+      "description": "Utility skills for the orc pipeline: Dependabot triage and repo scaffolding."
     },
     {
       "name": "ink",

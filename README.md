@@ -7,7 +7,7 @@ A Claude Code plugin marketplace. Three plugins for issue-to-PR automation, orc-
 | Plugin | What it does |
 |---|---|
 | [**orc**](plugins/orc/README.md) | Issue-to-PR automation for a GitHub-issue-driven workflow: interactive spec authoring plus autonomous build and review skills that open PRs. You do the final merge. |
-| [**util**](plugins/util/README.md) | Utility skills for the orc pipeline: quick commit/review/PR, Dependabot triage, issue-status listing, and repo scaffolding. |
+| [**util**](plugins/util/README.md) | Utility skills for the orc pipeline: Dependabot triage and repo scaffolding. |
 | [**ink**](plugins/ink/README.md) | Editorial workflow for long-form blog posts: brainstorm, develop, write, review, and publish. |
 
 ## Install

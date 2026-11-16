@@ -1,11 +1,12 @@
 <!--
-Posted as a PR comment via `gh-rest pr-comment` — never folded into the PR
-description. The marker line must be the literal first line, with the full
+Posted (and later updated) as a PR comment via `gh-rest comment-upsert` —
+never folded into the PR description. The marker line must be the literal first line, with the full
 commit SHA review ran against (after any auto-fixes are committed) and the
 overall verdict: BLOCK if any BLOCKER remains, WARNING if any WARNING remains,
-otherwise PASS. `walkthru` reads this marker for the verdict and to tell
-whether the review covers the current HEAD — do not omit it or reorder it
-after the fact.
+otherwise PASS. `walkthru` reads this marker for the verdict, and updates
+it after each mini build's re-review. The SHA records what was reviewed; later
+non-code commits (docblocks, changelog) don't make it stale. Do not omit it
+or reorder it after the fact.
 
 Organize by what the reader needs to do, not by which agent found it:
 - Merge duplicate findings across agents into one line.

@@ -110,7 +110,8 @@ and the walkthrough are forbidden from inventing reasons it doesn't hold.
 Referenced throughout as "**gate: {name}**". When a gate trips:
 
 1. Commit and push whatever exists on the branch (so it's inspectable) —
-   unless nothing was built yet. Post the decision record if a PR exists.
+   unless nothing was built yet. Post the decision record — to the PR, or to
+   the issue if no PR exists yet (`templates/decisions.md`).
 2. Comment on the issue:
    ```
    🚧 Build paused: {gate name}
@@ -414,14 +415,18 @@ re-run the agent(s) that raised each fixed finding on the new diff, and
 record `- fixed: {finding} — {what changed}`. A fixed finding that comes back
 is not fixed again — it stays open.
 
-**Leave the rest for the walkthrough.** A finding with more than one
-reasonable fix, or one that might be accepted as is, goes into the decision
-table as a **low**-confidence row: the finding, the options (each fix, and
-"accept as is" with its risk), and your recommendation. Don't ask now — no
-later work depends on it.
+**Leave the rest for the walkthrough.** Every surviving finding not fixed
+above — more than one reasonable fix, a fix outside the spec, a fixed finding
+that came back, an `untested:` gap — goes into the decision table as a
+**low**-confidence row: the finding, the options (each fix, and "accept as
+is" with its risk), and your recommendation. The walkthrough only asks about
+low-confidence rows, so nothing open may live anywhere else. Don't ask now —
+no later work depends on it.
 
 **Deploy notes.** If `deploy-risk-scanner` says **Needs notes: yes**, post
-its steps as a PR comment:
+its steps as a PR comment (on **no**, and a Deploy notes comment exists from
+an earlier run, upsert it to `<!-- orc:deploy -->` + `## 🚀 Deploy notes` +
+`None needed.` so stale steps never survive):
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert {pr} "<!-- orc:deploy -->" --body-file .orc/tmp/{number}-deploy.md
