@@ -20,8 +20,8 @@ and approval exactly as normal — the spec goes to the local
 `.orc/tmp/{number}-spec.md` scratch file and mockups to
 `.orc/mockups/{number}/`, both left in place for inspection (skip the `rm` in
 step 8). Skip every GitHub write — `gh-rest issue-edit`, `issue-comment`,
-`issue-block`, and the parent's build-plan update — and the mockup commit and
-push; print what each would have done. End with:
+`issue-block`, the parent's build-plan update, and the draft PR — and the
+mockup commit and push; print what each would have done. End with:
 ```
 DRY RUN — spec written to .orc/tmp/{number}-spec.md, not posted.
 {approved — would set status:ready | still open: {what's open}}
@@ -234,6 +234,16 @@ git stash pop
 git add .orc/mockups/{number}/
 git commit -m "docs(#{number}): mockups"
 git push -u origin {branch}
+```
+
+Then open the issue's draft PR now, unless it already has one, so `build` —
+in this session or another — finds this branch (and the mockups) through the
+branch rule. Post its URL on the issue; that link is how later skills find it:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-create --draft --base main --title "{title}" \
+  --body "🗒️ Planned — mockups only, build hasn't started. Closes #{number}."   # prints {number,url}
+${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-comment {number} --body "Draft PR: {url}"
 ```
 
 Then post the spec:

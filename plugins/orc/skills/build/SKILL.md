@@ -218,7 +218,8 @@ pushes are plain `git push`.
 
 **Open the PR at the first push** — right here if the mockups commit exists,
 otherwise after wave 1's commit (GitHub won't open a PR with no commits).
-Reuse the issue's open PR from a previous run (`{pr}` from the branch rule):
+Reuse the issue's open PR (`{pr}` from the branch rule) — `plan` opens one
+when it commits mockups, and a previous build run leaves one:
 
 - **None** — create it in draft, from `{branch}`:
   ```bash

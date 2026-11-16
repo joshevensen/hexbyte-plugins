@@ -29,7 +29,8 @@ wasn't sure of.
 - Interactive, responsive mockups (`templates/mockup.html`): self-contained
   HTML in the app's theme with a phone/tablet/desktop toggle, state switcher,
   and change highlighting. Written to `.orc/mockups/{issue}/`, shown in the
-  session, committed to the issue branch, passed to implementers
+  session, committed to the issue's branch with a draft PR (so a build in
+  another session finds them), and passed to implementers
 - Spec criteria tags: `[e2e]` (one per touched user flow, required for M and
   L) and `[optional]` (run when the environment allows, never gates)
 - Decision confidence (high/low) everywhere decisions are recorded
