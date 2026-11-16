@@ -49,14 +49,12 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 |---|---|
 | `/orc:create` | Discuss an idea at the scope level and produce GitHub issue(s) — no spec |
 | `/orc:plan` | Analyze the codebase, challenge the idea, settle decisions, assess size and risk, mock up UI changes, and post a spec you approve |
-| `/orc:do` | Run create → plan → build for one small, low-risk issue in a single pass |
 | `/orc:build` | Take a specced issue to a reviewed PR: waves of parallel implementers, blind acceptance tests, a criteria ledger, independent AI review, decisions recorded with confidence. Depth follows the spec's size and risk. Never merges |
 | `/orc:walkthru` | Finish a built PR with you: fix CI or conflicts, handle Copilot and other PR comments, one-screen summary, questions only on low-confidence decisions, last changes through a mini build, squash-merge on your yes |
 | `/orc:learn` | Every so often: turn decisions that recur across merged PRs (or that you tagged as rules) into `CLAUDE.md` rules, via a PR |
-| `/orc:discuss` | Read-only exploration mode — no changes until you say go |
-| `/orc:explain` | Explain what a file, route, or PR is doing in plain language, at junior/intermediate/senior depth — read-only chat reply, nothing posted |
+| `/orc:discuss` | Read-only exploration mode — talk through ideas, or ask what a file, route, or PR does; no changes until you say "green light" |
 
-`/orc:push`, `/orc:bump`, `/orc:list`, and `/orc:setup` moved to the
+`/orc:push`, `/orc:bump`, and `/orc:setup` moved to the
 [`util`](../util) plugin — install `util@hexbyte` alongside `orc` to keep
 using them.
 
@@ -163,7 +161,7 @@ it rebuilds from `origin/main` and reuses the PR.
 
 ## `--dry-run`
 
-Every skill that writes to GitHub or pushes (`create`, `plan`, `do`, `build`,
+Every skill that writes to GitHub or pushes (`create`, `plan`, `build`,
 `learn` here, plus `push`/`bump`/`setup` in `util`) accepts a trailing
 `--dry-run`. Local commits and file writes still happen, but `git push` and
 every GitHub-mutating call are skipped and printed instead. Each skill

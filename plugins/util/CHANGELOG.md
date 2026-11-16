@@ -12,6 +12,9 @@ Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that 
   with orc's copy)
 - References to the removed `/orc:resume` now point at `/orc:walkthru`
 
+### Removed
+- `list` — GitHub's label filter covers it
+
 ## [0.3.2]
 
 ### Fixed

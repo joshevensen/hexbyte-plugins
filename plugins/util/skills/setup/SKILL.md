@@ -4,7 +4,7 @@ description: Wire a repo for orc — labels, .orc directory, CLAUDE.md verificat
 model: sonnet
 ---
 
-The day-to-day loop (`create`, `plan`, `build`, `walkthru`, `push`, `list`)
+The day-to-day loop (`create`, `plan`, `build`, `walkthru`, `push`)
 self-provisions its own labels — each defensively ensures a bare (`gh-rest label-ensure`)
 version of any `status:*` label right before it's first needed — and needs no
 setup to work in a fresh repo. That self-provisioning is intentionally minimal

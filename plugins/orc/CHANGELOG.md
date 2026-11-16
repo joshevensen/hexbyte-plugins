@@ -54,12 +54,17 @@ wasn't sure of.
   repeating it, and scales the spec to its size
 - `spec-critic` also checks end-to-end coverage and the risk rating
 - `implementer` takes mockups and reports options and confidence per decision
-- `do` stops before build when plan rates the work above S or high risk
+- `discuss` explains files, routes, and PRs (what `explain` did, at senior
+  depth by default), follows `working-style.md`, and offers `/orc:create`
+  once the discussion settles on concrete work
 
 ### Removed
 - `/orc:resume` — its CI, mergeability, and review-resolution work moved to
   `walkthru`
 - `/orc:respond` — PR comment handling moved into `walkthru`
+- `/orc:do` — `plan`'s size rating and `build`'s S path cover small work, and
+  the skills already hand off in one session
+- `/orc:explain` — merged into `discuss`
 - The decisions memory: `.orc/decisions/made.md`, `resolved.md`, automatic
   promotion, and the "settle it" prompts. `/orc:learn` replaces them
 - The hidden `orc:decisions` block in the PR body, and `walkthru`'s session

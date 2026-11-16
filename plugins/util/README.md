@@ -2,12 +2,11 @@
 
 Companion utility skills for the [`orc`](../orc) pipeline: a quick
 commit/review/PR path for changes made outside `create`/`plan`/`build`,
-Dependabot triage, an issue-status view, and repo scaffolding. Split out of
+Dependabot triage, and repo scaffolding. Split out of
 `orc` so that plugin stays focused on the create → plan → build pipeline
 itself.
 
-Part of the `hexbyte` marketplace. Install alongside `orc` — `list` and
-`setup` operate on the same GitHub issues and labels `orc` manages, and
+Part of the `hexbyte` marketplace. Install alongside `orc` — `setup` operates on the same GitHub issues and labels `orc` manages, and
 `push`/`bump` run the same AI review `orc:build` folds in.
 
 ### Install — Claude Code CLI (local)
@@ -52,17 +51,16 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 |---|---|
 | `/util:push` | Commit working-tree changes → review → push → open PR (no merge). For changes made directly in conversation that don't warrant a full `orc:create` + `orc:build` cycle |
 | `/util:bump` | Review open Dependabot grouped PRs for security and breaking changes, then merge if safe |
-| `/util:list` | List open orc-managed issues, optionally filtered by status |
 | `/util:setup` | Scaffold a repo for orc — labels, `.orc/`, `CLAUDE.md` sections, PR template, CHANGELOG, dependabot. Idempotent — safe to re-run |
 
 ## Why a separate plugin
 
-`orc`'s own skills (`create`, `plan`, `do`, `build`, `walkthru`, `learn`,
-`discuss`, `explain`) are the pipeline itself — the thing that turns an issue
-into a reviewed PR. `push`, `bump`, `list`, and `setup` are useful around that
+`orc`'s own skills (`create`, `plan`, `build`, `walkthru`, `learn`,
+`discuss`) are the pipeline itself — the thing that turns an issue
+into a reviewed PR. `push`, `bump`, and `setup` are useful around that
 pipeline but don't drive it: `push` is a shortcut for work that skipped the
 pipeline entirely, `bump` handles a different kind of PR (Dependabot's, not
-`build`'s), `list` is a read-only status view, and `setup` is one-time-ish
+`build`'s), and `setup` is one-time-ish
 scaffolding. Keeping them in a separate plugin keeps `orc` scoped to running
 builds, and lets either plugin version and release independently.
 
@@ -82,7 +80,7 @@ and local file writes still happen — so you can inspect real output with
 `git log`/`git diff` — but `git push` and every GitHub-mutating `gh` call
 (issue/PR/label create, edit, comment, merge) are skipped and printed
 instead. Each skill documents its exact boundary at the top of its
-`SKILL.md`. `list` is read-only and has no `--dry-run` of its own.
+`SKILL.md`.
 
 ## Versioning
 
