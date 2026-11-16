@@ -58,7 +58,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 ## Why a separate plugin
 
 `orc`'s own skills (`create`, `plan`, `do`, `build`, `walkthru`, `learn`,
-`respond`, `discuss`, `explain`) are the pipeline itself — the thing that turns an issue
+`discuss`, `explain`) are the pipeline itself — the thing that turns an issue
 into a reviewed PR. `push`, `bump`, `list`, and `setup` are useful around that
 pipeline but don't drive it: `push` is a shortcut for work that skipped the
 pipeline entirely, `bump` handles a different kind of PR (Dependabot's, not

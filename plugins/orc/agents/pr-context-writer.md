@@ -75,7 +75,7 @@ Write to the review path as JSON:
 ```
 
 - Every comment body starts with `<!-- orc:context -->` on its own line —
-  `/orc:respond` uses it to skip these.
+  `/orc:walkthru` uses it to skip these when handling PR comments.
 - `comments` are **line** comments. `line` must be a line in the PR's diff on
   the new side (an added or context line inside a hunk) — GitHub rejects the
   whole review otherwise. Check each against the diff before writing it.

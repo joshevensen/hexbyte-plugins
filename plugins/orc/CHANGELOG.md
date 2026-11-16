@@ -44,6 +44,10 @@ wasn't sure of.
   build** (implement, test, push, re-review the delta, update the PR
   comments) before squash-merging on an explicit yes. Runs on `opus`. No
   longer takes topics, commit ranges, or `--uncommitted`
+- `walkthru` handles unresolved PR comments: the engineer's own are
+  instructions; Copilot's and others' go through `finding-verifier`, get
+  fixed when there's one right fix, or are asked about. Each gets a reply and
+  its thread is resolved
 - `deploy-risk-scanner` writes deploy notes instead of a risk level; nothing
   it finds blocks. Destructive data changes become a walkthrough question
 - `plan` runs on `opus`; `spec-writer` builds on plan's research instead of
@@ -55,6 +59,7 @@ wasn't sure of.
 ### Removed
 - `/orc:resume` — its CI, mergeability, and review-resolution work moved to
   `walkthru`
+- `/orc:respond` — PR comment handling moved into `walkthru`
 - The decisions memory: `.orc/decisions/made.md`, `resolved.md`, automatic
   promotion, and the "settle it" prompts. `/orc:learn` replaces them
 - The hidden `orc:decisions` block in the PR body, and `walkthru`'s session

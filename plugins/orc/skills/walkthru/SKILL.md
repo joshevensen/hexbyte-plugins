@@ -1,6 +1,6 @@
 ---
 name: walkthru
-description: Finish a built PR with the engineer — check CI and mergeability (fixing them if needed), show a one-screen summary, ask only about low-confidence decisions, departures from the spec, and open review findings, take last-minute changes through a mini build, then squash-merge on an explicit yes. Use after /orc:build. Invoke as /orc:walkthru [pr number].
+description: Finish a built PR with the engineer — check CI and mergeability (fixing them if needed), handle PR comments (Copilot, bots, the engineer's own), show a one-screen summary, ask only about low-confidence decisions, departures from the spec, and open findings, take last-minute changes through a mini build, then squash-merge on an explicit yes. Use after /orc:build. Invoke as /orc:walkthru [pr number].
 model: opus
 ---
 
@@ -41,7 +41,16 @@ GraphQL-backed `gh` subcommands.
    - `<!-- orc:deploy -->` — deploy notes, if any
 3. **Spec** (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-view {issue}`, the
    `## Spec` comment) — criteria, Size and Risk, Mockups.
-4. **The change.** Check out the PR branch
+4. **Unresolved PR comments** — everything not written by orc (skip any
+   comment whose body starts with `<!-- orc:`):
+   - review threads: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-threads {pr}`,
+     keeping `isResolved == false`. A thread's author is its first non-orc
+     comment's author.
+   - conversation comments from `pr-comments`, unless a later comment already
+     answers or withdraws them.
+   Tag each as **yours** (`gh api user --jq .login`) or **someone else's**
+   (Copilot, other bots, other people).
+5. **The change.** Check out the PR branch
    (`${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-checkout {pr}`) and read
    `git diff origin/main...HEAD` as needed — never dump it.
 
@@ -71,6 +80,25 @@ only if the right answer is clear from both sides' intent, else ask in step 4
 with the conflicting hunks. Re-run focused verification on the conflicted
 files, then `git push --force-with-lease`.
 
+**PR comments.** Work each one from step 1:
+
+- **Yours** — an instruction. A change request goes into the next mini build
+  as worded, no question asked; a question gets a short reply. Unclear what
+  you want → ask in step 4.
+- **Someone else's** — judge it before acting. Invoke `finding-verifier` on
+  each, all in parallel, passing the comment as the finding.
+  - **REFUTED** — don't act on it.
+  - **CONFIRMED, one right fix** inside the spec — fix it in a mini build
+    (step 6) without asking.
+  - **CONFIRMED with more than one reasonable fix, UNCERTAIN, or outside the
+    spec** — ask in step 4, with your recommendation.
+
+Every comment gets a reply when it's settled — what was done, or in one or
+two sentences why not — via `gh-rest pr-reply {pr} {first-comment-id}` for a
+thread or `gh-rest pr-comment {pr}` for a conversation comment. Then resolve
+the thread (`gh-rest pr-resolve {pr} {first-comment-id}`). Never resolve one
+silently. A thread still waiting on the engineer stays open.
+
 ## 3. Summary — one screen, no question
 
 ```
@@ -81,6 +109,7 @@ files, then `git push --force-with-lease`.
 {each ❌ or ⏭️ criterion, one line with why}
 🔍 Review: {verdict} · {f} fixed{ · {w} open}
 🚦 CI: {green | fixed: {what} | pending | red: {why}} · {mergeable | conflicts resolved | conflicts need you}
+💬 Comments: {none | n — {f} fixed, {d} declined, {q} need you}
 🚀 Deploy: {none | n step(s) — see Deploy notes}
 ⚖️ Decisions: {n} recorded · {k} need you
 📁 Mockups: {paths, if any}
@@ -95,9 +124,10 @@ built.
 The questions are, in this order:
 
 1. A CI failure or merge conflict step 2 couldn't fix safely.
-2. Every **low**-confidence row in the decision record — including departures
+2. PR comments step 2 couldn't settle on its own.
+3. Every **low**-confidence row in the decision record — including departures
    from the spec, open review findings, and destructive changes.
-3. Every ❌ not-met required criterion, with your proposed fix.
+4. Every ❌ not-met required criterion, with your proposed fix.
 
 Nothing else: high-confidence decisions, fixed findings, met criteria, and
 safe files are not asked about. Zero questions is the normal case for a clean
@@ -178,6 +208,8 @@ Before offering **Merge it**, all of these must hold:
 - AI review verdict not BLOCK
 - no required criterion ❌ not met
 - no unanswered low-confidence row
+- no unresolved PR comment (re-check `pr-threads` — Copilot reviews again
+  after a push)
 
 If any fails, say exactly which in one line and offer **Make changes** /
 **Stop here** only.
@@ -199,4 +231,5 @@ Report in one line. If the PR has deploy notes, end with: `🚀 Deploy notes:
 - Never ask about something high-confidence or already fixed; never pad.
 - Every claim backed by the decision record, the spec, git, or the code.
   Label inferences.
-- Nothing is posted except the PR comment updates in steps 6–7 and the merge.
+- Nothing is posted except replies to PR comments, the orc comment updates
+  in steps 6–7, and the merge.
