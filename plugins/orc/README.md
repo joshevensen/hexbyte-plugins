@@ -50,7 +50,7 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | `/orc:create` | Discuss an idea at the scope level and produce GitHub issue(s) — no spec |
 | `/orc:plan` | Analyze the codebase, challenge the idea, settle decisions, assess size and risk, mock up UI changes, and post a spec you approve |
 | `/orc:build` | Take a specced issue to a reviewed PR: waves of parallel implementers, blind acceptance tests, a criteria ledger, independent AI review, decisions recorded with confidence. Depth follows the spec's size and risk. Never merges |
-| `/orc:walkthru` | Finish a built PR with you: fix CI or conflicts, handle Copilot and other PR comments, one-screen summary, questions only on low-confidence decisions, last changes through a mini build, squash-merge on your yes |
+| `/orc:walkthru` | Finish a built PR with you: fix CI or conflicts, handle Copilot and other PR comments, one-screen summary, questions only on low-confidence decisions, last changes through a mini build, squash-merge on your yes, then hands you the command to start the next issue in the parent's build plan, in a new session |
 | `/orc:status` | Recap this session after time away: the issue, where it stopped, what was decided, what changed on GitHub since, and what to do next. Read-only, runs on haiku |
 | `/orc:learn` | Every so often: turn decisions that recur across merged PRs (or that you tagged as rules) into `CLAUDE.md` rules, via a PR |
 | `/orc:discuss` | Read-only exploration mode — talk through ideas, or ask what a file, route, or PR does; no changes until you say "green light" |
@@ -79,7 +79,9 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
   hasn't done yet. It proves every acceptance criterion and records every
   decision with a confidence level.
 - **`walkthru`** asks only about what orc wasn't sure of, takes last changes,
-  and merges on your explicit yes.
+  and merges on your explicit yes. When the merged issue belongs to a parent,
+  it ends with a copyable `/orc:plan {n}` or `/orc:build {n}` for the next
+  startable issue in the build plan, to run in a new session.
 - **`learn`** turns recurring decisions into `CLAUDE.md` rules.
 
 ## Size and risk paths

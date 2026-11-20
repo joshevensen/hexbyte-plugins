@@ -32,7 +32,8 @@ in this session".
 
 ## 2. Check what changed since
 
-For each issue and PR found, run only what applies — quick reads, no loops:
+For each issue and PR found, run only what applies — quick reads, no loops
+(except step 4's next-issue reads after a merge):
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest preflight
@@ -76,9 +77,15 @@ first:
 - **Handle what changed** — when something did (e.g. "Walkthru: CI failed
   and Copilot left 2 comments").
 - **The next pipeline step** — when the last one finished (`plan` → `build`
-  → `walkthru`; after a merge, the next unblocked issue in its parent's build
-  plan, in a new session).
+  → `walkthru`). When the session's PR is merged, find the issue's parent and
+  pick the next issue as
+  `${CLAUDE_PLUGIN_ROOT}/templates/build-plan.md` describes; the option names
+  that issue. If there is no parent, or nothing is startable, don't offer it.
+  These candidate reads are the one place status reads more than the
+  session's own issue — still read-only.
 - **Stop here.**
 
 On a choice, run that skill now with the Skill tool and the same issue or PR
-number. On **Stop here** or free text, do what it says or stop.
+number — except the post-merge next-issue option: for it,
+print the block and run nothing, because the next issue starts in a new
+session. On **Stop here** or free text, do what it says or stop.

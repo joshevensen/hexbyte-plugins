@@ -26,7 +26,7 @@
 #   pr-checks <n> [--watch] [--timeout S]   exit 0 pass, 1 fail, 8 pending
 #   pr-checkout <n>                   fetch and check out the PR's head branch
 #   pr-merge <n> [--delete-branch]    squash-merge
-#   issue-view <n>                    {number,title,url,state,labels,body,comments:[{author,body,created_at}]}
+#   issue-view <n>                    {number,title,url,state,labels,body,comments:[{author,body,created_at}],parent}
 #   issue-list [--label L] [--limit N]    open issues (PRs excluded), JSON array
 #   issue-create --title T (--body B | --body-file F) [--label L]...   -> {number,url}
 #   issue-edit <n> [--add-label L]... [--remove-label L]... [--body-file F]
@@ -304,7 +304,9 @@ case "$CMD" in
     comments=$(rapi "issues/$n/comments" --paginate \
       --jq '.[] | {author: .user.login, body, created_at, url: .html_url}' | jq -s '.')
     jq --argjson c "$comments" '{number, title, url: .html_url, state: (.state | ascii_upcase),
-         labels: [.labels[].name], body: (.body // ""), comments: $c}' <<<"$issue"
+         labels: [.labels[].name], body: (.body // ""), comments: $c,
+         parent: ((.repository_url + "/issues/") as $p | (.parent_issue_url // "")
+           | if startswith($p) then (ltrimstr($p) | tonumber) else null end)}' <<<"$issue"
     ;;
 
   issue-list)

@@ -2,6 +2,24 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.16.0]
+
+### Added
+- `templates/build-plan.md` — one rule for finding an issue's parent
+  (GitHub's sub-issue link first, then `Part of #{parent}`) and for picking
+  the next issue in its build plan
+- `walkthru` ends with a copyable `/orc:plan {n}` or `/orc:build {n}` for the
+  next startable issue, to run in a new session, with `Also ready:` lines for
+  the rest
+- `scripts/gh-rest issue-view` returns `parent`
+
+### Changed
+- `status`'s post-merge option prints the same block and runs nothing
+- `plan` and `walkthru` also detect a parent from the native sub-issue link
+- `walkthru` reports when the parent's checklist has no line for the merged
+  issue
+- The working-style handoff table
+
 ## [0.15.0]
 
 Rebalances the pipeline toward planning: the engineer's effort goes into
