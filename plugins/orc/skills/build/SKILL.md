@@ -54,6 +54,9 @@ chose in the report.
 | Deploy notes | ✅ | ✅ | ✅ |
 | PR context comments | — | ✅ | ✅ |
 
+The build workflow's `PATHS` constant mirrors the middle rows (review agents,
+coverage, breaks, gap-fill rounds); change both together.
+
 ## `--dry-run`
 
 `/orc:build {number} --dry-run` runs everything exactly as normal, including
@@ -62,7 +65,11 @@ local git — the branch is created and each wave is committed locally, so
 stops at the network boundary: skip every `git push`, every `gh-rest
 issue-edit` label change, and every `gh-rest pr-*`, `comment-upsert`, and
 `gh api` call — print what each would have sent instead (the decision record,
-criteria ledger, and deploy notes stay in `.orc/tmp/` for inspection). End
+criteria ledger, and deploy notes stay in `.orc/tmp/` for inspection). The
+workflow (step 7) gets `dryRun: true`: it commits locally but pushes nothing,
+opens no PR, and posts nothing. With `pr` still null after the workflow, the
+post-workflow steps print each comment body — decision record, AI review,
+criteria ledger, deploy notes, PR body — instead of upserting it. End
 with:
 ```
 DRY RUN — {n} wave(s) committed locally on branch {branch}, not pushed. Would
@@ -191,6 +198,18 @@ If `CLAUDE.md` has no `## Verification` section (and no `## Focused
 Verification` section), there is no way to prove the build is sound →
 **gate: missing infra** (run `/util:setup`).
 
+The middle of the build runs as the plugin workflow `/orc:build-execute`
+(step 7). If the `Workflow` tool isn't available in this session — workflows
+are disabled, `CLAUDE_CODE_DISABLE_WORKFLOWS=1` is set, the `disableWorkflows`
+setting is on, or a Pro plan hasn't turned on the `/config` toggle — or the
+launch in step 7 errors because workflows are unavailable, that is also
+**gate: missing infra**. What's needed: workflows enabled — a paid plan (on
+Pro, turn workflows on in `/config`), with `CLAUDE_CODE_DISABLE_WORKFLOWS`
+unset and `disableWorkflows` not set. Unattended runs (`claude -p`, the SDK,
+scheduled runs) never show the approval prompt, so they also need a
+`Workflow(orc:build-execute)` (or `Workflow(build-execute)`) allow rule in
+`settings.json` — see the plugin README.
+
 ### 5. Branch
 
 Resolve `{branch}` as `${CLAUDE_PLUGIN_ROOT}/templates/branch.md` describes —
@@ -212,14 +231,20 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:building"
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:ready,status:blocked,status:built" --add-label "status:building"
 ```
 
+Write the decision record now: `mkdir -p .orc/tmp`, then create
+`.orc/tmp/{number}-decisions.md` from the spec's Decisions table in the
+format of `templates/decisions.md` (see *Decision record*). Every later
+append and post works on this file.
+
 `switch -C` deliberately discards a previous run's commits, so the **first
 push** of this run is `git push --force-with-lease -u origin {branch}`; later
 pushes are plain `git push`.
 
-**Open the PR at the first push** — right here if the mockups commit exists,
-otherwise after wave 1's commit (GitHub won't open a PR with no commits).
-Reuse the issue's open PR (`{pr}` from the branch rule) — `plan` opens one
-when it commits mockups, and a previous build run leaves one:
+**Open the PR at the first push** — right here if the mockups commit exists
+(push it now and launch the workflow with `pushed: true`), otherwise the
+workflow opens it after wave 1's commit (GitHub won't open a PR with no
+commits). Reuse the issue's open PR (`{pr}` from the branch rule) — `plan`
+opens one when it commits mockups, and a previous build run leaves one:
 
 - **None** — create it in draft, from `{branch}`:
   ```bash
@@ -228,7 +253,9 @@ when it commits mockups, and a previous build run leaves one:
   ```
 - **Exists** — reuse it, and put it back in draft if it isn't: `${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-ready {pr} --undo 2>/dev/null || true`.
 
-Then post the PR URL as an issue comment and post the decision record.
+Then, when a PR was created or reused here, post the PR URL as an issue
+comment and post the decision record. With no PR yet, the workflow does both
+at its first push.
 
 ### 6. Plan the task list
 
@@ -239,181 +266,143 @@ schema settled in task 2 that task 4 builds on) — not thematic similarity.
 
 Group the tasks into waves:
 
-- **Independent tasks** (no unmet dependency, and — ideally — disjoint file
-  sets) run in **parallel**, one subagent each. On the S path, run tasks
-  sequentially in one implementer instead.
+- **Independent tasks** (no unmet dependency, and disjoint file sets) run in
+  **parallel**, one subagent each.
 - **Dependent tasks** run **after** the tasks they depend on.
+- **Tasks that share a file** go in different waves, even when otherwise
+  independent. Never let two parallel subagents write the same file.
+- **S path:** one wave holding one task that carries the whole list, run by a
+  single implementer.
 
-Where two otherwise-independent tasks **share a file**, either serialize them
-or run them in isolated git worktrees and reconcile the file before the
-integration pass. Never let two parallel subagents write the same file
-concurrently.
+Give each task an `id`, `title`, `description`, `files`, `dependsOn`, and a
+`model`:
 
-### 7. Execute the waves
-
-For each wave, dispatch its tasks:
-
-- Invoke `implementer` once per task, launched together. Give each the spec,
-  its task, the exact files it owns, the focused verification command, and
-  the mockup files for any page it builds. It touches nothing outside its
-  files and reports its decisions — with options and confidence — for you to
-  record.
 - **Choose each implementer's model by explicit rule**, set at dispatch (the
   agent defaults to `opus`). Downgrade to `sonnet` only when the task is
   *purely mechanical* — a rename, boilerplate, config, or copying an existing
   pattern to a new file — **and** touches none of: auth or permissions, data
   migrations or schema, shared or public interfaces, concurrency, money, or
   anything the spec's Key Logic calls out. When unsure, stay on `opus`.
-- **Write the acceptance tests in parallel.** In wave 1, alongside the
-  implementers, invoke `test-writer` with the spec, the repo's test locations
-  and commands from `CLAUDE.md`, and the test files it owns. It writes tests
-  from the spec **without reading the implementation**, `[e2e]` criteria
-  included. Skip it when every criterion is verified by a command or
-  observable outcome, or the repo has no test framework. Implementers don't
-  write these tests; leave the test-writer's files unstaged until they pass
-  (step 9).
-- **A stopped task.** An implementer that stops returns a question. If it
-  changes work not yet done, ask it once the rest of the wave finishes, then
-  re-dispatch the task with the answer. Otherwise decide it yourself, record
-  it as **low** confidence, and re-dispatch. Nobody to ask and it blocks:
-  **gate: ambiguity**.
 
-After each wave, integrate the results (resolve any worktree reconciliation),
-then run focused verification and commit (step 8) before the next wave.
+Decide whether `test-writer` runs (`testWriter`): it writes the acceptance
+tests from the spec, blind to the implementation, in parallel with wave 1.
+Set it false when every criterion is verified by a command or observable
+outcome, or the repo has no test framework. If it runs, pick the test files
+it owns (`testFiles`) from the repo's test locations in `CLAUDE.md`; no
+implementer task owns them.
 
-### 8. Focused verification + commit per wave
+### 7. Run the build workflow
 
-Run only the tests covering what that wave changed — never the full suite.
-Prefer the command in `CLAUDE.md`'s **`## Focused Verification`** section. If
-it is absent, derive a narrow invocation from `## Verification` by scoping it
-to the touched paths. If `CLAUDE.md` has a **`## CI-Only Verification`**
-section, never run anything it lists, in any form.
+The middle of the build — the waves, acceptance tests and their proofs,
+`[e2e]` and `[optional]` checks, the review agents, and a `finding-verifier`
+per finding — runs as the plugin workflow `/orc:build-execute`. It keeps every
+intermediate result out of this conversation and returns one result object.
 
-If a focused command fails and the fix isn't a clear, safe correction within
-the spec, **gate: verify** with the failing command and output. If a command
-can't run (missing binary/env), record it in the ledger and continue.
+**Launch.** Launch `/orc:build-execute` through the `Workflow` tool with
+these args, in this order:
 
-Once a wave passes, commit and push it, staging only the files that wave
-changed (never `git add .` blindly), then re-post the decision record:
-
-```bash
-git add {wave's files}
-git commit -m "feat(#{number}): {wave summary}"
-git push            # --force-with-lease -u origin {branch} if this is the run's first push
+```
+Launch args
+- number — the issue number
+- title — the issue title, used for the draft PR
+- branch — the branch from step 5
+- pluginRoot — the expanded value of ${CLAUDE_PLUGIN_ROOT} (an absolute path); the workflow can't expand it
+- pr — the PR number from step 5, or null when none exists yet
+- pushed — true when step 5 already pushed the mockups commit
+- dryRun — true on a --dry-run
+- path — S, M or L, from step 2
+- spec — the full spec comment text
+- decisionsPath — .orc/tmp/{number}-decisions.md
+- focused — the Focused Verification command from CLAUDE.md, or the rule for deriving a narrow one from Verification, plus any CI-Only Verification list
+- mutation — the Mutation Testing command from CLAUDE.md, or null
+- testInfo — test locations and commands from CLAUDE.md, or null when the repo has no test framework
+- testWriter — step 6's decision on running test-writer
+- testFiles — the files test-writer owns
+- mockups — the mockup file paths under .orc/mockups/{number}/
+- waves — step 6's waves: an array of waves, each an array of tasks {id, title, description, files, dependsOn, model}
+- answers — {id, answer} entries; empty on the first launch, always the last key
 ```
 
-### 9. Prove the tests
+If the launch errors because workflows are unavailable, **gate: missing
+infra** (step 4). Otherwise record `{runId, args, relaunches}` (`relaunches`
+starts at 0) to `.orc/tmp/{number}-workflow.json`, then wait for the
+completion notification — the launch returns at once and the result arrives
+later. Don't poll.
 
-After the last wave, if `test-writer` wrote tests, run them with the focused
-command it returned. Each failure is one of two things — find out which before
-touching anything:
+**On `question`.**
 
-- **The test contradicts the spec** (it asserts something the spec doesn't
-  say, or relied on an interface the spec doesn't define — check its
-  Assumptions against the implementation): fix the test, and record
-  `- test: {file} — {what changed} — because {reason}` under Constraints in
-  the decision record.
-- **The implementation misses the spec**: fix the implementation (re-dispatch
-  the owning `implementer` with the failure), then re-run.
+1. Ask the questions with `AskUserQuestion`, as *Asking* describes.
+2. With nobody to ask, decide each question with `blocksLaterWork: false`
+   yourself, record it as a **low**-confidence decision, and use your choice
+   as its answer. Any question with `blocksLaterWork: true` → append
+   `result.decisions` to the decision record, then **gate: ambiguity** with
+   the questions.
+3. Append `result.decisions` and each answer to the decision record, then
+   post it.
+4. Relaunch with `resumeFromRunId: {runId}` and the **identical** args object
+   — nothing changed except `{id, answer}` entries appended to `answers`, so
+   completed agents replay from their saved results. Update `runId` and
+   increment `relaunches` in `.orc/tmp/{number}-workflow.json`, and wait
+   again.
+5. After 3 relaunches, a further `question` result is **gate: ambiguity**
+   (append its `result.decisions` first).
 
-Never weaken an assertion just to make it pass. If a failure can't be
-classified from the spec, ask, or **gate: ambiguity**.
+**On `gate`.** Append `result.decisions` to the decision record first, then
+run the Gate procedure with `gate.name`, `gate.reason` as the reason, and
+`gate.needed` as what's needed. The gate commit stages only expected paths —
+the test files, the failing wave's owned files, and files already committed
+on the branch — by name; never `git add .` or `git add -A`. Any other path
+`gate.reason` lists stays unstaged and is named in the issue comment.
 
-Then prove the tests can fail and cover the change, at the depth the path
-sets (see *Paths*):
+**On `done`.** Take `pr` from the result. Append to the decision record, with
+no deduping (the workflow's `wave-integrator` already wrote each wave's
+implementer decisions):
 
-1. **Red against base** (every path). Run the new tests against `origin/main`'s
-   code, in place — a fresh worktree has no installed dependencies or local
-   env file. The implementation is committed and the new tests are still
-   uncommitted, so this is safe: for each source file the branch changed
-   (`git diff --name-only --diff-filter=M origin/main...HEAD`), `git checkout
-   origin/main -- {file}`; for each source file it added (`--diff-filter=A`),
-   delete it. Leave test files, dependency manifests, lockfiles, and
-   `.orc/` alone. Run the focused command, then restore with `git checkout
-   HEAD -- {every file you touched}` and confirm `git status` shows only the
-   uncommitted tests. Every test not marked `guards existing` must fail
-   there — on its **assertion**, not only on a missing import or symbol (if
-   the only failure is a missing symbol, judge from the test's `catches:` line
-   whether its assertion would still bite). A test that passes on base and
-   isn't guarding existing behavior tests nothing: rewrite or delete it.
-2. **Behavior map** (every path). Every behavior on `test-writer`'s list maps
-   to a test or a stated reason it isn't tested. An unmapped behavior is a gap.
-3. **Changed-line coverage** (M, L). If the repo already has a coverage tool
-   set up, run the focused tests with coverage and list the **changed lines**
-   they never execute. Never chase a whole-repo percentage, and don't install
-   a tool to get this.
-4. **Break the code** (M: Key Logic functions, up to 3 breaks each; L: every
-   changed function with logic, up to 5 each). The implementation is
-   committed, so this is safe.
-   - If `CLAUDE.md` has a **`## Mutation Testing`** section, run its command
-     scoped to the changed source files (or their classes, if it scopes by
-     class); every surviving mutant is a gap. If the command must end with a
-     test path, take it from the tests this build added or changed (combine
-     `git diff --name-only origin/main` with `git ls-files --others
-     --exclude-standard`); if only one path is allowed, use the directory
-     containing them all. A non-zero exit with no report is a failed run,
-     not "no survivors": record it as unmeasured.
-   - Otherwise plant breaks by hand, one at a time, starting with what Key
-     Logic calls out: invert a condition, shift a boundary, delete a branch
-     or early return, return a wrong or empty value, drop a side effect, skip
-     a validation. Run the tests covering that file after each, record whether
-     any failed, and restore with `git checkout -- {file}`. A break no test
-     catches is a gap. A break with no observable effect isn't a gap — note it
-     and move on.
-5. **Fill the gaps** (M: 1 round, L: 2). Invoke `test-writer` in `gap-fill`
-   mode with the surviving breaks, unmapped behaviors, and uncovered lines.
-   Its new tests go through checks 1 and 4 too. A question it returns is
-   asked, or recorded as a low-confidence decision. Gaps still open after the
-   last round (and every gap on the S path) go to review as WARNINGs
-   ("untested: {behavior}").
-6. **Read what's left.** Delete any remaining test that matches a pattern
-   `test-writer` forbids (tautology, existence-only, over-mocked, framework,
-   unreviewed snapshot, restated implementation), then re-check the
-   behaviors it covered.
+- every entry in `result.decisions`
+- `- test: {file} — {change} — because {reason}` under Constraints, one per
+  `tests.testFixes` entry
+- `- coverage: {planted} breaks planted, {caught} caught, {equivalent}
+  equivalent, {open} open` under Constraints, from `tests.breaks`
+- `- refuted: {finding} — {evidence}` under Review, one per REFUTED finding
 
-Record the totals under Constraints as `- coverage: {n} breaks planted, {n}
-caught, {n} equivalent, {n} open`. Commit and push the tests with any fixes
-(`test(#{number}): acceptance tests`).
+**New session.** `resumeFromRunId` works only in the session that launched
+the run. When `/orc:build` runs in a new session, steps 0–6 rerun as normal;
+a `.orc/tmp/{number}-workflow.json` left by an earlier session is discarded,
+and the workflow launches fresh with `pr` re-resolved by the branch rule.
 
-### 10. End-to-end and optional checks
+**The result** has exactly these keys:
 
-- **`[e2e]` criteria** are covered by `test-writer`'s feature tests; confirm
-  each passed in step 9. One that can't be proven is a failing criterion:
-  fix the implementation, or **gate: verify**.
-- **`[optional]` criteria** — run each command if this environment can (it
-  has the network access, credentials, and data it names). A failure is a
-  finding for review, not a gate. If it can't run, record `⏭️ not run —
-  {reason}` in the ledger and move on.
+```
+Workflow result
+- status — done, question or gate
+- questions — on question: {id, source, taskId, text, options, blocksLaterWork} per question; otherwise empty
+- gate — on gate: {name (verify or ambiguity), reason, needed}; otherwise null
+- pr — the PR number (the workflow opens it if none was passed); null on a dry run with no PR
+- headSha — the commit the review diff was taken at
+- commits — {sha, message} for each commit the workflow made
+- decisions — decisions not yet in the record (test-writer, test-prover, review, workflow-level), each with its source
+- tests — {files, runWith, added, redOnBase, unmapped, uncoveredLines, breaks, mutationUnmeasured, testFixes, deleted}
+- criteria — {criterion, status (met, not_met or not_run), proof} per acceptance criterion
+- findings — {agent, severity, title, file, line, detail, verdict, evidence} per BLOCKER or WARNING, REFUTED ones included and marked; untested gaps and failed optional checks come as WARNINGs
+- deploy — {needsNotes, destructive, notes} from the deploy scanner, or null
+- notRun — {command, reason} for each command that couldn't run here
+```
 
-### 11. Review
+### 8. Review follow-through
 
-Refresh the base first (`git fetch origin main`). Run the path's review agents
-**in parallel**, passing each the spec, the decision record, and the full
-diff (`git diff origin/main...HEAD`) — never the build conversation, so each
-reviews with fresh eyes:
+On the L path, run `/code-review` over `git diff origin/main...HEAD`; if it
+isn't available here, note that and continue. Its findings join
+`result.findings`. REFUTED findings are already recorded (step 7); UNCERTAIN
+ones stay, marked uncertain.
 
-- `review-correctness` — acceptance criteria, scope drift, logic errors (every path)
-- `review-quality` — complexity, pattern consistency, test coverage (every path)
-- `review-security` — injection, auth gaps, data exposure, insecure defaults (M, L)
-- `review-impact` — breaking changes, side effects, performance regressions (M, L)
-- `deploy-risk-scanner` — deploy notes, not findings (every path)
-
-On the L path, also run `/code-review` over the same diff; if it isn't
-available here, note that and continue.
-
-**Verify every BLOCKER and WARNING.** Invoke `finding-verifier` once per
-finding, all in parallel, passing the finding, the spec, the decision record,
-and the diff. **REFUTED** — drop it, recording `- refuted: {finding} —
-{evidence}` under Review. **CONFIRMED** — keep it at the verifier's severity.
-**UNCERTAIN** — keep it, marked uncertain. NOTEs are dropped.
-
-**Fix what has one right answer.** Fix a surviving finding yourself when the
-fix is unambiguous and stays inside the spec: lint, a missing import, a type
-error, dead code the diff introduced, a confirmed spec violation, a crash, a
-security hole with a standard remedy. Commit and push (`fix(#{number}):
-address review findings`), re-run focused verification on what changed,
-re-run the agent(s) that raised each fixed finding on the new diff, and
-record `- fixed: {finding} — {what changed}`. A fixed finding that comes back
+**Fix what has one right answer.** Fix a surviving finding from
+`result.findings` yourself when the fix is unambiguous and stays inside the
+spec: lint, a missing import, a type error, dead code the diff introduced, a
+confirmed spec violation, a crash, a security hole with a standard remedy.
+Commit and push (`fix(#{number}): address review findings`), re-run focused
+verification on what changed, re-run the agent(s) that raised each fixed
+finding (its `agent` field) by invoking them directly with the spec, the
+decision record, and the new diff, and record `- fixed: {finding} — {what changed}`. A fixed finding that comes back
 is not fixed again — it stays open.
 
 **Leave the rest for the walkthrough.** Every surviving finding not fixed
@@ -424,9 +413,9 @@ is" with its risk), and your recommendation. The walkthrough only asks about
 low-confidence rows, so nothing open may live anywhere else. Don't ask now —
 no later work depends on it.
 
-**Deploy notes.** If `deploy-risk-scanner` says **Needs notes: yes**, post
-its steps as a PR comment (on **no**, and a Deploy notes comment exists from
-an earlier run, upsert it to `<!-- orc:deploy -->` + `## 🚀 Deploy notes` +
+**Deploy notes.** If `result.deploy.needsNotes` is true, post
+`result.deploy.notes` as a PR comment (when false, and a Deploy notes
+comment exists from an earlier run, upsert it to `<!-- orc:deploy -->` + `## 🚀 Deploy notes` +
 `None needed.` so stale steps never survive):
 
 ```bash
@@ -434,10 +423,10 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert {pr} "<!-- orc:deploy -->" 
 ```
 
 starting with `<!-- orc:deploy -->` and `## 🚀 Deploy notes`. Deploy steps
-are never findings and never block. A **destructive** change also goes into
-the decision table as a **low**-confidence row ("Destructive: {what data is
-lost}" — options: ship as is · make it non-destructive), so the walkthrough
-asks about it.
+are never findings and never block. A **destructive** change
+(`result.deploy.destructive`) also goes into the decision table as a
+**low**-confidence row ("Destructive: {what data is lost}" — options: ship as
+is · make it non-destructive), so the walkthrough asks about it.
 
 **AI review comment.** Fill `${CLAUDE_PLUGIN_ROOT}/templates/ai-review.md`
 from the state after fixes — organized by what needs the reader, not by
@@ -452,9 +441,11 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert {pr} "<!-- orc:ai-review" -
 The verdict is BLOCK while any BLOCKER is open — `/orc:walkthru` won't merge
 until it's resolved there. Re-post the decision record.
 
-### 12. Criteria ledger
+### 9. Criteria ledger
 
-Post one line per acceptance criterion, with proof, as a PR comment:
+Post one line per acceptance criterion, with proof, as a PR comment — built
+from `result.criteria`, with the Testing line from `result.tests` and each
+`result.notRun` command recorded as not run:
 
 ```markdown
 <!-- orc:criteria -->
@@ -477,14 +468,14 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest comment-upsert {pr} "<!-- orc:criteria -->
 Proof is a test name or command plus its result — never "looks right". A
 required criterion that's ❌ not met keeps the AI review verdict at BLOCK.
 
-### 13. Docblocks and changelog
+### 10. Docblocks and changelog
 
 Update file-level docblocks for changed files. If the repo keeps a
 `CHANGELOG.md`, invoke `changelog-writer` and insert its entry at the
 placement it specifies (its output leads with a `Placement:` line). Commit and
 push any changes.
 
-### 14. PR context and ready for review
+### 11. PR context and ready for review
 
 **M and L paths:** give the reviewer what they need in **Files changed**.
 Remove context left by an earlier run first — only marker comments nobody has
@@ -501,7 +492,7 @@ jq -r '[.[] | select(.in_reply_to_id) | .in_reply_to_id] as $replied
 ```
 
 Invoke `pr-context-writer` with the issue number and body, the spec, the
-decision record, step 11's WARNING findings, `{pr}`, `git rev-parse HEAD`,
+decision record, step 8's WARNING findings, `{pr}`, `git rev-parse HEAD`,
 and the output paths `.orc/tmp/{number}-pr-body.md` and
 `.orc/tmp/{number}-context.json`. Then post what it wrote — the body, the line
 comments as one review with no summary body (skip the review when there are no
@@ -540,7 +531,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status
 Build doesn't wait for CI — the PR runs it, and `/orc:walkthru` checks it
 (and mergeability) before anything merges.
 
-### 15. Report
+### 12. Report
 
 ```
 PR for #{number} — {pr-url} ({size}/{risk} path)

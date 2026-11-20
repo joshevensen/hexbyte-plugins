@@ -85,7 +85,7 @@ def check_plugin_root_paths(paths):
                 fail(f"{path}: references nonexistent path ${{CLAUDE_PLUGIN_ROOT}}/{rel}")
 
 
-def check_agent_references(skill_paths, agent_paths):
+def check_agent_references(skill_paths, agent_paths, workflow_referenced=frozenset()):
     defined = {parse_frontmatter(p).get("name") for p in agent_paths}
     defined.discard(None)
 
@@ -102,8 +102,89 @@ def check_agent_references(skill_paths, agent_paths):
                 if name not in defined:
                     fail(f"{path}: references undefined agent `{name}`")
 
-    for name in sorted(defined - referenced):
-        warn(f"agent '{name}' is defined but never referenced by any skill")
+    for name in sorted(defined - referenced - set(workflow_referenced)):
+        warn(f"agent '{name}' is defined but never referenced by any skill or workflow")
+
+
+def _skip_leading_comments(text):
+    """Index of the first character after leading blank lines and // or /* */ comments."""
+    i = 0
+    while i < len(text):
+        if text[i].isspace():
+            i += 1
+        elif text.startswith("//", i):
+            nl = text.find("\n", i)
+            i = len(text) if nl == -1 else nl + 1
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = len(text) if end == -1 else end + 2
+        else:
+            break
+    return i
+
+
+def _matching_brace(text, start):
+    """Index of the `}` matching the `{` at `start`, skipping string literals; -1 if none."""
+    depth = 0
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if ch in "'\"`":
+            i += 1
+            while i < len(text) and text[i] != ch:
+                i += 2 if text[i] == "\\" else 1
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return -1
+
+
+def check_workflows(workflow_paths, agent_paths):
+    defined = {parse_frontmatter(p).get("name") for p in agent_paths}
+    defined.discard(None)
+
+    meta_prefix = "export const meta = {"
+    string_value = r"\s*:\s*(['\"`])((?:\\.|(?!\1).)*)\1"
+    agent_literal = re.compile(r"['\"]orc:([a-z][a-z0-9-]*)['\"]")
+
+    referenced = set()
+    for path in workflow_paths:
+        text = path.read_text()
+
+        start = _skip_leading_comments(text)
+        if not text.startswith(meta_prefix, start):
+            fail(f"{path}: first statement must be '{meta_prefix}'")
+        else:
+            brace = start + len(meta_prefix) - 1
+            end = _matching_brace(text, brace)
+            meta = text[brace:end + 1] if end != -1 else text[brace:]
+            values = {}
+            for field in ("name", "description"):
+                match = re.search(rf"\b{field}{string_value}", meta, re.DOTALL)
+                if not match or not match.group(2).strip():
+                    fail(f"{path}: meta missing '{field}'")
+                else:
+                    values[field] = match.group(2)
+            if "name" in values and values["name"] != path.stem:
+                fail(f"{path}: meta name '{values['name']}' doesn't match filename '{path.stem}'")
+
+        for match in agent_literal.finditer(text):
+            name = match.group(1)
+            referenced.add(name)
+            if name not in defined:
+                fail(f"{path}: references undefined agent `{name}`")
+
+        if "${CLAUDE_PLUGIN_ROOT}" in text:
+            fail(
+                f"{path}: uses ${{CLAUDE_PLUGIN_ROOT}}, which is a JS interpolation "
+                "in a workflow — pass the plugin root via args"
+            )
+
+    return referenced
 
 
 def check_no_graphql_gh():
@@ -186,6 +267,7 @@ def check_version_changelog_sync():
 def main():
     skill_paths = sorted((ORC_ROOT / "skills").glob("*/SKILL.md"))
     agent_paths = sorted((ORC_ROOT / "agents").glob("*.md"))
+    workflow_paths = sorted((ORC_ROOT / "workflows").glob("*.js"))
 
     if not skill_paths:
         fail(f"no SKILL.md files found under {ORC_ROOT / 'skills'}")
@@ -195,7 +277,8 @@ def main():
     check_frontmatter_files(skill_paths, "skill")
     check_frontmatter_files(agent_paths, "agent")
     check_plugin_root_paths(skill_paths + agent_paths)
-    check_agent_references(skill_paths, agent_paths)
+    workflow_referenced = check_workflows(workflow_paths, agent_paths)
+    check_agent_references(skill_paths, agent_paths, workflow_referenced)
     check_no_graphql_gh()
     check_gh_rest_copies_match()
     check_version_changelog_sync()
