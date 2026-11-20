@@ -228,17 +228,33 @@ Before merging, post the final decision record (statuses included) with
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest pr-merge {pr} --delete-branch
 ```
 
-Report in one line. If the PR has deploy notes, end with: `🚀 Deploy notes:
-{n} step(s) on the PR — run them with this deploy.`
+Report in one line. If the PR has deploy notes, add:
+`🚀 Deploy notes: {n} step(s) on the PR — run them with this deploy.`
 
-**Related issues.** If the issue body says `Part of #{parent}`, update the
-parent's build plan: read its body (`gh-rest issue-view {parent}`), tick
-`- [ ] #{issue}` → `- [x] #{issue}`, and save it (`gh-rest issue-edit
-{parent} --body-file …`). If every box is now ticked, close the parent
-(`gh-rest issue-close {parent}`). Otherwise list the siblings this merge
-unblocked — open sub-issues (`gh-rest issue-subs {parent}`) whose blockers
-(`gh-rest issue-blockers {n}`) are all closed — as `Can start now: #{n} —
-{title}`, each in its own session.
+**Related issues.** Find the parent as "Finding the parent" in
+`${CLAUDE_PLUGIN_ROOT}/templates/build-plan.md` describes, using step 1's
+`issue-view {issue}` output. If there is no parent, skip this paragraph
+entirely — no tick, no block, no list, no message. Otherwise:
+
+1. Read the parent's body (`gh-rest issue-view {parent}`) and find the merged
+   issue's checklist line in either state (`- [ ] #{issue}` or
+   `- [x] #{issue}`), using the template's non-digit matching rule. If it's
+   unticked, tick it (`- [ ] #{issue}` → `- [x] #{issue}`) and save it
+   (`gh-rest issue-edit {parent} --body-file …`). If it's already ticked (a
+   re-run, or ticked by hand), change nothing and say nothing.
+2. If the body has no line for the issue in either state, say so in one line:
+   `Parent #{parent}'s build plan has no line for #{issue} — not ticked.`
+   The issue is still excluded from candidates, and the parent is not closed.
+3. Close the parent (`gh-rest issue-close {parent}`) and stop, with no block,
+   only when item 1 found the merged issue's line **and** no unticked
+   `- [ ] #` line remains. A parent whose body has no checklist line for the
+   merged issue (e.g. a hand-linked epic without a build plan) is
+   never closed by walkthru.
+4. Otherwise pick the next issue as "Picking the next issue" in the same
+   template describes, and end the message with its block.
+
+Message order: the one-line merge report, then the no-line note if any, then
+the deploy-notes line if any, then the next-issue block if any — always last.
 
 ## Rules
 

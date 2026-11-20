@@ -55,9 +55,11 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest label-ensure "status:ready"
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-edit {number} --remove-label "status:ready" --add-label "status:draft"
 ```
 
-**Related issues.** If the body says `Part of #{parent}`, read the parent
-(`gh-rest issue-view {parent}`) for its Shared context and Build plan. Then
-check blockers:
+**Related issues.** Find the parent as "Finding the parent" in
+`${CLAUDE_PLUGIN_ROOT}/templates/build-plan.md` describes (run
+`gh-rest issue-view {number}` for its `parent`; `issue-loader` doesn't return
+it). If there is one, read it (`gh-rest issue-view {parent}`) for its Shared
+context and Build plan. Then check blockers:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/gh-rest issue-blockers {number}

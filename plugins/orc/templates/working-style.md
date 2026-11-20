@@ -56,11 +56,20 @@ next step ready ends by offering it.
 | `build`, PR ready for review | `/orc:walkthru` |
 | `discuss`, settled on concrete work | `/orc:create` |
 | `status` | its own options (see that skill) |
-| `walkthru`, `learn`, `plan` still draft, any gate, any dry run | nothing |
+| `walkthru`, merged issue has a parent with a startable sibling | a copyable command for the next issue, for a **new** session (see below) |
+| `walkthru` without a parent or with no startable sibling, `learn`, `plan` still draft, any gate, any dry run | nothing |
 
-- **The last line of the message**, nothing after it:
+- **The last line of the message**, nothing after it (not after `walkthru` — see below):
   `➡️ Next: /orc:plan #12 — continue?`
 - **Yes** → run that skill now, in this session, with the Skill tool and the
   same issue or PR number. **Anything else** → stop; don't ask again.
+- After `walkthru` merges an issue with a parent (and for `status`'s
+  post-merge option), the next issue starts in a **new** session: no
+  "continue?", and nothing is run. The message ends instead with the block
+  from `${CLAUDE_PLUGIN_ROOT}/templates/build-plan.md`: the
+  `➡️ Next, in a new session` label line, any `Also ready:` lines, then a
+  fenced block holding only the command, last.
 - Offer it only when the work is actually ready. If something is blocked, open,
-  or still draft, say what instead and offer nothing.
+  or still draft, say what instead and offer nothing. (This is about this
+  session's own issue, not the walkthru next-issue block, whose
+  `/orc:plan {n}` for a draft sibling is expected.)
