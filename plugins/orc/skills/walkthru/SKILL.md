@@ -178,11 +178,11 @@ If there are change requests — from step 4 or here — run a mini build
 For each batch of change requests:
 
 1. **Implement.** Small, local changes: make them yourself. Anything touching
-   several files or Key Logic: invoke `implementer` per task, as `build` step
-   7 does. Pass the mockups if a page changes.
+   several files or Key Logic: invoke `implementer` per task, as `build`'s
+   waves do. Pass the mockups if a page changes.
 2. **Test.** Add or update tests for the changed behavior; each new test must
    fail against the code before the change (check by stashing the change, as
-   `build` step 9 does against base). Run focused verification on everything
+   `build`'s `test-prover` does against base). Run focused verification on everything
    touched.
 3. **Commit and push** — `fix(#{issue}): {change}`.
 4. **Review the delta.** Run `review-correctness` and `review-quality` (plus

@@ -43,6 +43,33 @@ The interactive `/plugin` command isn't available in web sessions, and plugins m
 
 Requires the environment's network access to reach `github.com` **and `cli.github.com`** (the default **Trusted** policy does). Under a locked-down policy that blocks the `gh` install source, this won't work — orc needs `gh` present, so either allow the install host in your policy or run orc from a Trusted environment.
 
+## Workflows
+
+`build` runs its middle (implementer waves, acceptance tests, test proofs,
+review fan-out and finding verification) as the plugin workflow
+`/orc:build-execute`. It requires Claude Code with workflows enabled: a paid
+plan, the `/config` toggle on Pro, and not disabled via `disableWorkflows` or
+`CLAUDE_CODE_DISABLE_WORKFLOWS`. Without workflows, `build` stops at gate:
+missing infra.
+
+Unattended runs (`claude -p`, the SDK, scheduled runs) never show the approval
+prompt, so they need an allow rule in `settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Workflow(orc:build-execute)",
+      "Workflow(build-execute)"
+    ]
+  }
+}
+```
+
+The docs don't specify which form the name takes, so both are listed.
+
+Per-agent token use is visible in `/workflows`.
+
 ## Skills
 
 | Skill | What it does |
@@ -100,6 +127,8 @@ interfaces) always takes the L path.
 
 ## How build proves the work
 
+- **Runs as a workflow.** The middle runs as a workflow that resumes after a
+  reclaim.
 - **Acceptance tests written blind.** `test-writer` writes them from the spec
   alone, in parallel with the first wave, including an `[e2e]` test per user
   flow that drives the real wiring end to end.
@@ -170,7 +199,7 @@ it rebuilds from `origin/main` and reuses the PR.
 | Ambiguity | mid-build, a question that blocks later work, and no one to ask |
 | Verify | focused tests fail and can't be safely fixed, or an `[e2e]` criterion can't be met |
 | Blocked | an issue it depends on (`Blocked by`) isn't merged yet |
-| Missing infra | `CLAUDE.md` has no `## Verification` / `## Focused Verification` section |
+| Missing infra | `CLAUDE.md` has no `## Verification` / `## Focused Verification` section, or workflows aren't available |
 
 ## `--dry-run`
 

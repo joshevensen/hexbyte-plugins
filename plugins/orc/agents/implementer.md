@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements one task from a build's dependency-ordered task list, touching only the files it owns. Invoked by /orc:build for each task in a wave; build overrides the model per task (see build step 7).
+description: Implements one task from a build's dependency-ordered task list, touching only the files it owns. Invoked by the orc build-execute workflow for each task in a wave (and by /orc:walkthru's mini build); build picks the model per task when it plans the task list.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: opus
 ---
