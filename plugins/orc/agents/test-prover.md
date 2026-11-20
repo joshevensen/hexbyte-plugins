@@ -143,6 +143,7 @@ Return, and nothing else:
 - `{test}` — {forbidden pattern it matched}
 
 ### Criteria (finalize mode)
+One line per acceptance criterion. Copy each criterion's text from the spec verbatim, including any `[e2e]` or `[optional]` marker — the workflow finds the e2e gate and optional failures by those markers.
 - {criterion} — met | not_met | not_run — {proof: test or command and its result, or the reason}
 
 ### Test files (finalize mode)

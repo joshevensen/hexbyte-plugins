@@ -78,7 +78,7 @@ git checkout HEAD -- $(git diff --name-only origin/main...HEAD)
 git status --porcelain
 ```
 
-Leave out of the checkout any path that doesn't exist at HEAD (the branch deleted it). Don't touch uncommitted test files. Return the `git status --porcelain` output in `gitStatus`. Compare each path in it with the expected paths the prompt lists; put every other path in `unexpected`. Don't stage, clean or delete anything.
+Leave out of the checkout any path that doesn't exist at HEAD (the branch deleted it), and every path the prompt lists as expected — uncommitted test files and the failing wave's owned files — so the wave's uncommitted work survives for the gate commit. Restore those owned files only if they hold a base version that red against base or a break left behind (`git diff origin/main -- {file}` is empty while `git diff HEAD -- {file}` is not). Return the `git status --porcelain` output in `gitStatus`. Compare each path in it with the expected paths the prompt lists; put every other path in `unexpected`. Don't stage, clean or delete anything.
 
 ## Dry run
 

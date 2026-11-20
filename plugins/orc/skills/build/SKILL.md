@@ -380,7 +380,7 @@ Workflow result
 - pr — the PR number (the workflow opens it if none was passed); null on a dry run with no PR
 - headSha — the commit the review diff was taken at
 - commits — {sha, message} for each commit the workflow made
-- decisions — decisions not yet in the record (test-writer, test-prover, review, workflow-level), each with its source
+- decisions — decisions not yet in the record (test-writer, test-prover, review, workflow-level), each with its source; on a gate, also the failing wave's implementer decisions
 - tests — {files, runWith, added, redOnBase, unmapped, uncoveredLines, breaks, mutationUnmeasured, testFixes, deleted}
 - criteria — {criterion, status (met, not_met or not_run), proof} per acceptance criterion
 - findings — {agent, severity, title, file, line, detail, verdict, evidence} per BLOCKER or WARNING, REFUTED ones included and marked; untested gaps and failed optional checks come as WARNINGs
@@ -391,16 +391,22 @@ Workflow result
 ### 8. Review follow-through
 
 On the L path, run `/code-review` over `git diff origin/main...HEAD`; if it
-isn't available here, note that and continue. Its findings join
-`result.findings`. REFUTED findings are already recorded (step 7); UNCERTAIN
-ones stay, marked uncertain.
+isn't available here, note that and continue. Invoke `finding-verifier` on
+each BLOCKER and WARNING it raises (all in parallel, with the finding, the
+spec, the decision record and `.orc/tmp/{number}-diff.patch`), exactly as the
+workflow does for the review agents: REFUTED is dropped and recorded as
+`- refuted:`, CONFIRMED and UNCERTAIN join `result.findings`. REFUTED findings
+from the workflow are already recorded (step 7); UNCERTAIN ones stay, marked
+uncertain.
 
 **Fix what has one right answer.** Fix a surviving finding from
 `result.findings` yourself when the fix is unambiguous and stays inside the
 spec: lint, a missing import, a type error, dead code the diff introduced, a
 confirmed spec violation, a crash, a security hole with a standard remedy.
 Commit and push (`fix(#{number}): address review findings`), re-run focused
-verification on what changed, re-run the agent(s) that raised each fixed
+verification on what changed, rewrite the diff file
+(`git diff origin/main...HEAD > .orc/tmp/{number}-diff.patch`, since the
+review agents can't run git), re-run the agent(s) that raised each fixed
 finding (its `agent` field) by invoking them directly with the spec, the
 decision record, and the new diff, and record `- fixed: {finding} — {what changed}`. A fixed finding that comes back
 is not fixed again — it stays open.

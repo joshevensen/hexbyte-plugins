@@ -191,6 +191,9 @@ let diffPath = DIFF_PATH;
 let deploy = null;
 const commits = [];
 const decisions = [];
+// Decisions of the wave in progress: written by wave-integrator only on a pass,
+// so a gate before that must carry them (Decision 23).
+let pendingWave = () => [];
 const notRun = [];
 const findings = [];
 let criteria = [];
@@ -274,7 +277,7 @@ function out(status, extra) {
     pr,
     headSha,
     commits,
-    decisions,
+    decisions: status === 'gate' ? decisions.concat(pendingWave()) : decisions,
     tests: testsOut(),
     criteria,
     findings,
@@ -567,6 +570,10 @@ for (let wi = 0; wi < allWaves.length; wi++) {
   for (const s of slots) slotsById[s.task.id] = s;
   const twSlot = wi === 0 && testWriter ? { base: testWriterBase(), round: 0, qa: [], result: null } : null;
   const waveFiles = union(...wave.map((t) => t.files));
+  pendingWave = () => [].concat(...slots.map((s) => (s.decisions.length
+    ? s.decisions
+    : ((s.result && s.result.decisions) || []).map((d) => Object.assign({}, d, { taskId: s.task.id })))))
+    .map((d) => Object.assign({}, d, { source: 'implementer' }));
 
   log(`wave ${wi + 1}/${allWaves.length}: ${wave.map((t) => t.id).join(', ')}`);
   const first = await parallel([
@@ -688,6 +695,7 @@ for (let wi = 0; wi < allWaves.length; wi++) {
     }
   }
   record(integ);
+  pendingWave = () => [];
 }
 
 // ===========================================================================
@@ -705,7 +713,7 @@ if (haveTests) {
   for (let round = 0; ; round++) {
     const res = await runProver('run', ['Tests to run:', list(tw.files)], `test-prover run r${round}`);
     const g = proverGate(res, 'test-prover (run)', 'run');
-    if (g) return await restoreThenGate(g);
+    if (g) { if (res) absorbProver(res); return await restoreThenGate(g); }
     absorbProver(res);
     if (res.status !== 'impl-failures') break;
     if (round >= 2) {
@@ -765,7 +773,7 @@ if (haveTests) {
   // 2. Prove.
   const p = await runProver('prove', proveBody(tw.files, null), 'test-prover prove');
   const pg = proverGate(p, 'test-prover (prove)', 'prove');
-  if (pg) return await restoreThenGate(pg);
+  if (pg) { if (p) absorbProver(p); return await restoreThenGate(pg); }
   absorbProver(p);
   added = (tw.behaviors || []).filter((b) => b.test).length;
   redOnBase = redOnBase.concat(p.redOnBase || []);
@@ -815,7 +823,7 @@ if (haveTests) {
       `test-prover prove gap r${g}`,
     );
     const rg = proverGate(rp, 'test-prover (prove)', 'prove');
-    if (rg) return await restoreThenGate(rg);
+    if (rg) { if (rp) absorbProver(rp); return await restoreThenGate(rg); }
     absorbProver(rp);
     redOnBase = redOnBase.concat(rp.redOnBase || []);
     unmapped = rp.unmapped || [];
@@ -838,12 +846,12 @@ const fin = await runProver(
     'Test files to read and finalize:',
     list(haveTests ? writtenTests : []),
     '',
-    'Delete any test matching a pattern test-writer forbids and re-check the behaviors it covered. Confirm each [e2e] criterion passed. Run each [optional] criterion\'s command if this environment can, else mark it not_run with the reason. Return criteria for every acceptance criterion, and testFiles as the final set to commit.',
+    'Delete any test matching a pattern test-writer forbids and re-check the behaviors it covered. Confirm each [e2e] criterion passed. Run each [optional] criterion\'s command if this environment can, else mark it not_run with the reason. Return criteria for every acceptance criterion, with each criterion field set to the spec\'s criterion text verbatim, including its [e2e] / [optional] marker (the workflow matches on those markers), and testFiles as the final set to commit.',
   ],
   'test-prover finalize',
 );
 const fg = proverGate(fin, 'test-prover (finalize)', 'finalize');
-if (fg) return await restoreThenGate(fg);
+if (fg) { if (fin) absorbProver(fin); return await restoreThenGate(fg); }
 absorbProver(fin);
 criteria = (fin.criteria || []).map((c) => ({ criterion: c.criterion, status: c.status, proof: c.proof }));
 if (haveTests) {
