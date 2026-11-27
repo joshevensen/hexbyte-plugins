@@ -1,12 +1,11 @@
 # util
 
-Companion utility skills for the [`orc`](../orc) pipeline: Dependabot triage
-and repo scaffolding. Split out of
-`orc` so that plugin stays focused on the create → plan → build pipeline
-itself.
+Companion utility skills for [`orc`](../orc): Dependabot triage and repo
+scaffolding. Split out so `orc` stays focused on taking an idea to merged
+code.
 
-Part of the `hexbyte` marketplace. Install alongside `orc` — `setup` wires a repo for the issues and labels `orc`
-manages, and `bump` reuses two of its review agents.
+Part of the `hexbyte` marketplace. Install alongside `orc` — `setup` gives a
+repo the files `orc` reads, and `bump` reuses three of its agents.
 
 ### Install — Claude Code CLI (local)
 
@@ -49,21 +48,22 @@ Requires the environment's network access to reach `github.com` **and `cli.githu
 | Skill | What it does |
 |---|---|
 | `/util:bump` | Review open Dependabot grouped PRs for security and breaking changes, then merge if safe |
-| `/util:setup` | Scaffold a repo for orc — labels, `.orc/`, `CLAUDE.md` sections, PR template, CHANGELOG, dependabot. Idempotent — safe to re-run |
+| `/util:setup` | Set a repo up for orc on request — `CLAUDE.md` verification sections, PR template, CHANGELOG, dependabot, the `.orc/` scratch ignore — and open a PR with it. Optional (`/orc:ship` sets up what it needs by itself) and idempotent |
 
 ## Why a separate plugin
 
-`orc`'s skills (`create`, `plan`, `build`, `walkthru`, `status`, `learn`,
-`discuss`) are the pipeline itself. `bump` and `setup` are useful around it
-but don't drive it: `bump` handles Dependabot's PRs, not `build`'s, and
-`setup` is one-time scaffolding. Keeping them separate lets each plugin
-version and release independently.
+`orc`'s skills (`ship`, `idea`, `discuss`) are the flow itself. `bump` and
+`setup` are useful around it but don't drive it: `bump` handles Dependabot's
+PRs, not orc's, and `setup` is one-time scaffolding that `/orc:ship` doesn't
+depend on. Keeping them separate lets each plugin version and release
+independently.
 
 ## Shared agents
 
 `bump` uses `review-security`, `review-impact`, and `ci-debugger`. Each
 plugin's agents resolve from its own `agents/` directory, so those three are
-copied here from `orc` — keep them in sync if you change one.
+copied here from `orc`. The lint fails if a copy drifts — edit one and copy it
+to the other.
 
 ## `--dry-run`
 

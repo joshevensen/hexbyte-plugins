@@ -23,9 +23,12 @@
 #   pr-threads <n>                    review threads [{id,isResolved,path,line,comments:[{id,author,body}]}]
 #   pr-reply <n> <comment_id> (--body B | --body-file F)   reply inside a review thread
 #   pr-resolve <n> <comment_id>       resolve the review thread holding that comment
-#   pr-checks <n> [--watch] [--timeout S]   exit 0 pass, 1 fail, 8 pending
+#   pr-checks <n> [--watch] [--timeout S] [--settle S]   exit 0 pass, 1 fail, 8 pending
+#                                     --settle S (with --watch): keep watching for at least S seconds, so
+#                                     checks that register a moment after a push aren't missed
 #   pr-checkout <n>                   fetch and check out the PR's head branch
 #   pr-merge <n> [--delete-branch]    squash-merge
+#   pr-close <n>                      close a PR without merging
 #   issue-view <n>                    {number,title,url,state,labels,body,comments:[{author,body,created_at}],parent}
 #   issue-list [--label L] [--limit N]    open issues (PRs excluded), JSON array
 #   issue-create --title T (--body B | --body-file F) [--label L]...   -> {number,url}
@@ -77,7 +80,7 @@ urlencode() { jq -rn --arg s "$1" '$s | @uri'; }
 # body_args: sets BODY from --body / --body-file in "$@"; leaves the rest in REST_ARGS.
 parse_common() {
   BODY="" TITLE="" BASE="main" DRAFT="false" BODY_SET="" TITLE_SET="" LIMIT=30 LABEL=""
-  ADD_LABELS=() REMOVE_LABELS=() LABELS=() UNDO="" WATCH="" TIMEOUT=0 DELETE_BRANCH=""
+  ADD_LABELS=() REMOVE_LABELS=() LABELS=() UNDO="" WATCH="" TIMEOUT=0 SETTLE=0 DELETE_BRANCH=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --body) BODY="$2"; BODY_SET=1; shift 2 ;;
@@ -92,6 +95,7 @@ parse_common() {
       --undo) UNDO=1; shift ;;
       --watch) WATCH=1; shift ;;
       --timeout) TIMEOUT="$2"; shift 2 ;;
+      --settle) SETTLE="$2"; shift 2 ;;
       --delete-branch) DELETE_BRANCH=1; shift ;;
       *) die "unknown option: $1" ;;
     esac
@@ -274,7 +278,11 @@ case "$CMD" in
       rows=$( { rapi "commits/$sha/check-runs" --paginate --jq '.check_runs[] | [.name, (if .status != "completed" then "pending" elif (.conclusion | IN("success","neutral")) then "pass" elif .conclusion == "skipped" then "skipping" else "fail" end), (.html_url // "")] | @tsv';
                rapi "commits/$sha/status" --jq '.statuses[] | [.context, (if .state == "success" then "pass" elif .state == "pending" then "pending" else "fail" end), (.target_url // "")] | @tsv'; } )
       pending=$(grep -c -P '\tpending\t' <<<"$rows" || true)
-      if [[ -z "$WATCH" || "$pending" -eq 0 ]]; then break; fi
+      # Check runs register a few seconds after a push. Until --settle seconds have
+      # passed, "nothing pending" may only mean "nothing registered yet".
+      settling=""
+      if (( SETTLE > 0 && $(date +%s) - start < SETTLE )); then settling=1; fi
+      if [[ -z "$WATCH" || ( "$pending" -eq 0 && -z "$settling" ) ]]; then break; fi
       if (( TIMEOUT > 0 && $(date +%s) - start >= TIMEOUT )); then echo "gh-rest: timed out waiting for checks" >&2; break; fi
       sleep 10
     done
@@ -296,6 +304,11 @@ case "$CMD" in
     ref=$(rapi "pulls/$n" --jq .head.ref)
     echo '{"merge_method":"squash"}' | rapi "pulls/$n/merge" -X PUT --input - --jq '.message'
     [[ -n "$DELETE_BRANCH" ]] && rapi "git/refs/heads/$(urlencode "$ref" | sed 's/%2F/\//g')" -X DELETE --silent || true
+    ;;
+
+  pr-close)
+    n="${1:?pr number}"
+    echo '{"state":"closed"}' | rapi "pulls/$n" -X PATCH --input - --silent
     ;;
 
   issue-view)

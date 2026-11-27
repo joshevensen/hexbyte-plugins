@@ -1,6 +1,6 @@
 ---
 name: conflict-classifier
-description: Inspects merge conflict markers in the working tree and classifies each conflicted file as simple (auto-resolvable) or complex (needs human judgment). Invoked by walkthru after a rebase surfaces conflicts during its merge-readiness check.
+description: Inspects merge conflict markers in the working tree and classifies each conflicted file as simple (auto-resolvable) or complex (needs human judgment). Invoked by /orc:ship when merging the base branch into a PR's branch surfaces conflicts; any complex file stops that issue.
 tools: Bash, Read
 model: sonnet
 ---
@@ -44,5 +44,5 @@ Return ONLY this block — no prose:
 
 ### Recommended action
 
-{One sentence: what the calling skill should do next — e.g. "Auto-resolve lock files and regenerated assets, then stop for human review of the remaining conflicts."}
+{One sentence: what the calling skill should do next — e.g. "Regenerate the lock file and resolve the two non-overlapping edits" or "Stop: both sides rewrote `TotalsCalculator::apply`."}
 ```

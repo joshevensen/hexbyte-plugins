@@ -1,11 +1,11 @@
 # orc
 
-Issue-to-PR automation for a GitHub-issue-driven workflow, built for Claude Code
-on the web. You discuss and spec an issue interactively; `build` implements it
-autonomously — through code, review, and an open PR — stopping at well-defined
-**gates** whenever it can't safely continue. You do the final merge.
+One command takes an idea to merged code. You describe the idea, answer a few
+questions, and approve mockups of anything visual. orc files the issues,
+builds, checks and squash-merges on its own, and alerts you only when the
+scope grew or it can't make progress. Production deploys stay yours.
 
-Part of the `hexbyte` marketplace.
+Built for Claude Code on the web. Part of the `hexbyte` marketplace.
 
 ### Install — Claude Code CLI (local)
 
@@ -43,179 +43,91 @@ The interactive `/plugin` command isn't available in web sessions, and plugins m
 
 Requires the environment's network access to reach `github.com` **and `cli.github.com`** (the default **Trusted** policy does). Under a locked-down policy that blocks the `gh` install source, this won't work — orc needs `gh` present, so either allow the install host in your policy or run orc from a Trusted environment.
 
-## Workflows
-
-`build` runs its middle (implementer waves, acceptance tests, test proofs,
-review fan-out and finding verification) as the plugin workflow
-`/orc:build-execute`. It requires Claude Code with workflows enabled: a paid
-plan, the `/config` toggle on Pro, and not disabled via `disableWorkflows` or
-`CLAUDE_CODE_DISABLE_WORKFLOWS`. Without workflows, `build` stops at gate:
-missing infra.
-
-Unattended runs (`claude -p`, the SDK, scheduled runs) never show the approval
-prompt, so they need an allow rule in `settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Workflow(orc:build-execute)",
-      "Workflow(build-execute)"
-    ]
-  }
-}
-```
-
-The docs don't specify which form the name takes, so both are listed.
-
-Per-agent token use is visible in `/workflows`.
-
 ## Skills
 
 | Skill | What it does |
 |---|---|
-| `/orc:create` | Discuss an idea at the scope level and produce GitHub issue(s) — no spec |
-| `/orc:plan` | Analyze the codebase, challenge the idea, settle decisions, assess size and risk, mock up UI changes, and post a spec you approve |
-| `/orc:build` | Take a specced issue to a reviewed PR: waves of parallel implementers, blind acceptance tests, a criteria ledger, independent AI review, decisions recorded with confidence. Depth follows the spec's size and risk. Never merges |
-| `/orc:walkthru` | Finish a built PR with you: fix CI or conflicts, handle Copilot and other PR comments, one-screen summary, questions only on low-confidence decisions, last changes through a mini build, squash-merge on your yes, then hands you the command to start the next issue in the parent's build plan, in a new session |
-| `/orc:status` | Recap this session after time away: the issue, where it stopped, what was decided, what changed on GitHub since, and what to do next. Read-only, runs on haiku |
-| `/orc:learn` | Every so often: turn decisions that recur across merged PRs (or that you tagged as rules) into `CLAUDE.md` rules, via a PR |
-| `/orc:discuss` | Read-only exploration mode — talk through ideas, or ask what a file, route, or PR does; no changes until you say "green light" |
+| `/orc:ship [idea \| issue number \| parent issue number]` | The whole flow in one session: interview, issues, mockups, build, merge, report. Run it again on the same number to resume |
+| `/orc:idea "…"` | File an idea as one issue, without shipping it now. No questions, no research. `/orc:ship {number}` picks it up later |
+| `/orc:discuss [topic]` | Read-only mode — talk an idea through, or ask what a file, route or PR does; nothing changes until you say "green light" |
 
-`/util:bump` and `/util:setup` live in the [`util`](../util) plugin — install
-`util@hexbyte` alongside `orc` to use them.
+`/util:setup` and `/util:bump` live in the [`util`](../util) plugin. Neither
+is needed to use orc.
 
-## The pipeline
+## The flow
 
 ```
-  create ──▶ issue (draft) ──▶ plan ──▶ issue (ready) ──▶ build ──▶ PR (built) ──▶ walkthru ──▶ merged
-   scope        no spec yet      spec + mockups,          one PR,       reviewed       your questions,
-                                 you approve              any size                     last changes
+ idea ─▶ interview ─▶ issue(s) ─▶ mockups ─▶ build ─▶ check ─▶ merge ─▶ report
+         you answer               you approve └─ each issue in turn, orc alone ─┘
 ```
 
-- **`create`** gets the idea out of your head: scope, in/out, open questions
-  resolved. Splits only when work is genuinely separable. Pieces of one goal
-  get a **parent issue** with a build plan — phases, what blocks what, and
-  what can run in parallel — linked as GitHub sub-issues and dependencies.
-- **`plan`** is where your effort goes. It researches the codebase (tracing
-  the user flows the change touches), says plainly if the idea won't work or
-  a simpler one would, settles every real fork with you, rates **size**
-  (S/M/L) and **risk** (low/high), mocks up every changed page, and posts a
-  spec only once you approve it.
-- **`build`** runs on its own and asks only when an answer changes work it
-  hasn't done yet. It proves every acceptance criterion and records every
-  decision with a confidence level.
-- **`walkthru`** asks only about what orc wasn't sure of, takes last changes,
-  and merges on your explicit yes. When the merged issue belongs to a parent,
-  it ends with a copyable `/orc:plan {n}` or `/orc:build {n}` for the next
-  startable issue in the build plan, to run in a new session.
-- **`learn`** turns recurring decisions into `CLAUDE.md` rules.
+1. **Interview.** orc reads the code first, then asks only what changes what
+   gets built — scope, behavior, what's out, the split — each question with a
+   recommendation. A clear, small request skips the questions. It states what
+   it will build and what it assumed, and keeps going.
+2. **Issues.** Work that fits one PR is one issue; larger work becomes ordered
+   issues under a **parent issue** that tracks them until all are merged. orc
+   writes each spec into the issue body. Nobody approves it.
+3. **Mockups** (UI changes only). Every changed page gets an interactive
+   mockup in your app's theme, shown in the chat. You approve them all up
+   front — the last thing orc needs from you.
+4. **Build, check, merge**, one issue at a time: implement, write tests shown
+   to fail without the change, run your repo's verification commands, compare
+   screenshots of the built pages with the mockups, open the PR, wait for CI,
+   fix or decline review comments with a marked reply, squash-merge.
+5. **Report.** PR links and anything that needs you, plus a push notification
+   when the host has one. A parent gets one summary comment: what shipped,
+   what was decided without you, deploy notes, new rules.
 
-## Size and risk paths
+**Checking scales with risk.** Findings that survive are fixed in the PR.
 
-`plan` writes Size and Risk into the spec; `build` picks its depth from them.
-High risk (payments, auth, migrations, queues, external data, shared
-interfaces) always takes the L path.
+| Tier | Typical change | Before the merge |
+|---|---|---|
+| Light | docs, copy, config, a one-line fix | verification commands and CI |
+| Standard | a normal feature or bug fix | plus one independent reviewer, each finding challenged by a verifier |
+| Heavy | auth, payments, schema or data, public contracts, external side effects, a large diff | plus a four-way review, a deploy scan, mutation or coverage checks where the repo has them |
 
-| | S, low risk | M, low risk | L, or high risk |
-|---|---|---|---|
-| Implementers | one, sequential | parallel waves | parallel waves |
-| Blind acceptance tests, red against `main` | ✅ | ✅ | ✅ |
-| Changed-line coverage, breaks / mutation testing | — | Key Logic only | everything with logic |
-| Review agents | correctness, quality | + security, impact | + `/code-review` |
-| PR context comments | — | ✅ | ✅ |
+**orc stops only when** the scope grew (the criteria can't be met inside what
+was agreed, or the work changes behavior you agreed to), an approved mockup
+can't be built as drawn, a decision contradicts a `CLAUDE.md` rule, or it
+can't make progress (CI still red after three fixes, a merge conflict that
+isn't simple). A stop pauses that issue and what depends on it, leaves its PR
+open, says exactly what is wrong, and the run carries on with the rest.
 
-## How build proves the work
+**On its own, orc** writes the specs, picks the branch and the approach, fixes
+findings and CI failures, resolves simple conflicts, merges when CI is green,
+records every non-obvious decision, and turns a choice made on three issues
+into a rule you can veto by deleting it.
 
-- **Runs as a workflow.** The middle runs as a workflow that resumes after a
-  reclaim.
-- **Acceptance tests written blind.** `test-writer` writes them from the spec
-  alone, in parallel with the first wave, including an `[e2e]` test per user
-  flow that drives the real wiring end to end.
-- **Tests that can fail.** Every new test must fail against `main`; on M and
-  L, planted breaks (or the repo's mutation testing) must be caught.
-- **Criteria ledger.** A PR comment listing each acceptance criterion as met,
-  not met, or not run, with the test or command that proves it. `[optional]`
-  criteria (e.g. a check against real external data) run when the
-  environment allows and never block.
-- **Independent review.** Fresh agents see only the spec, the decision record
-  and the diff. Every BLOCKER and WARNING goes to `finding-verifier`, which
-  tries to disprove it first. Findings with one right fix are fixed; the rest
-  wait for the walkthrough.
-- **Deploy notes.** Migrations, queue restarts, env vars, and contract changes
-  become a Deploy notes comment with the steps — never a blocker. A
-  destructive data change is asked about in the walkthrough.
+**It never** deploys or runs a migration against a real environment, asks you
+to approve a spec, a finding or a merge, merges a stopped issue, changes repo
+settings or labels, or holds back a risky change — that merges with a "before
+you deploy" list in the PR and the parent's summary. Your manual deploy is the
+gate.
 
-The full suite and mergeability are left to the PR's CI; `walkthru` checks
-both (and fixes them with a mini build) before merging.
+**Resuming.** State lives on GitHub, so after a dead session, or once you've
+answered a stop, run `/orc:ship {number}` again: it continues without
+re-asking anything. Every report that ends early prints that command.
 
-## Decisions
+## What orc reads in your repo
 
-Every choice between real alternatives is recorded with its options, the
-choice, and a **confidence** — high when evidence settles it, low when a
-reasonable senior could choose otherwise. `plan`'s go in the spec; `build`'s
-in a **Decisions comment on the PR**, updated as work lands. `walkthru` asks
-about low-confidence decisions and nothing else, and marks each one confirmed,
-changed, or "make this a rule". `/orc:learn` later moves the recurring ones
-into `CLAUDE.md`. Format in [`templates/decisions.md`](templates/decisions.md).
-
-## Mockups
-
-When a change touches UI, `plan` writes an interactive, responsive mockup per
-changed page to `.orc/mockups/{issue}/` — self-contained HTML in the app's own
-theme, with a phone/tablet/desktop toggle and every state the spec names.
-They're shown in the session for approval, committed to the issue's branch,
-handed to implementers as the visual target, and shown again in the
-walkthrough. Starter: [`templates/mockup.html`](templates/mockup.html).
-
-## Branches
-
-orc never asks which branch to use (`templates/branch.md`): an issue with an
-open PR uses that PR's branch; otherwise the session's own branch (Claude
-Code on the web gives every session one); otherwise, e.g. locally on `main`,
-a new `issue/{n}-{slug}` branch. orc finds an issue's PR from the issue, not
-from a branch name.
-
-## Focused verification
-
-`build` verifies with **scoped/filtered** test runs — only the tests around
-what each wave changed. Each repo's `CLAUDE.md` carries a **`## Focused
-Verification`** section (distinct from `## Verification`) with the filtered
-command. A **`## CI-Only Verification`** section lists suites `build` never
-runs (browser/e2e). A **`## Mutation Testing`** section, if present, is used
-for the break check on M and L.
-
-## Gates
-
-`build` stops at a **gate** only when it can't continue and nobody can
-answer: it pushes what exists, comments the reason on the issue, sets
-`status:blocked`, and stops. Fix the cause and re-run `/orc:build {number}` —
-it rebuilds from `origin/main` and reuses the PR.
-
-| Gate | Trips when |
+| File | Used for |
 |---|---|
-| Spec | no spec, a required criterion isn't machine-verifiable, or Open Questions ≠ `None.` |
-| Confidence | material ambiguity between the spec and the codebase, and no one to ask |
-| Ambiguity | mid-build, a question that blocks later work, and no one to ask |
-| Verify | focused tests fail and can't be safely fixed, or an `[e2e]` criterion can't be met |
-| Blocked | an issue it depends on (`Blocked by`) isn't merged yet |
-| Missing infra | `CLAUDE.md` has no `## Verification` / `## Focused Verification` section, or workflows aren't available |
+| `CLAUDE.md` — `## Verification`, `## Focused Verification`, optional `## CI-Only Verification` and `## Mutation Testing` | The contract for what to run and what not to. Missing sections are added on the first run |
+| `.github/PULL_REQUEST_TEMPLATE.md` | The shape of each PR description. Added if missing |
+| `.orc/decisions/resolved.md` | Rules orc applies instead of deciding again. Delete a rule to veto it |
+| `.orc/decisions/made.md` | Decision history. The same choice on three issues becomes a rule, listed in the report |
+| `.orc/mockups/{issue}/` | Approved mockups, committed with the work |
 
-## `--dry-run`
+No labels, branch protection or other settings are required. A repo that used
+an earlier orc works as it is: its `CLAUDE.md` sections, `.orc/decisions` and
+`.orc/mockups` are read, and leftover `status:` labels are ignored.
 
-`create`, `plan`, `build`, and `learn` here, plus `bump` and `setup` in
-`util`, accept a trailing `--dry-run`. (`walkthru` doesn't: it acts only on
-your explicit answers.) Local commits and file writes still happen, but `git push` and
-every GitHub-mutating call are skipped and printed instead. Each skill
-documents its exact boundary at the top of its `SKILL.md`.
-
-## Labels
-
-`status:draft` (scoped, needs a spec) → `status:ready` (specced, buildable) →
-`status:building` → `status:blocked` (needs you) or `status:built` (PR ready
-for your walkthrough). Bugs additionally carry `type:bug`. Merged PRs that
-`/orc:learn` has read carry `orc:learned`. Labels self-provision when a skill
-first needs them.
+Templates for everything orc writes are in [`templates/`](templates): the
+[interview rules](templates/interview.md), the
+[issue](templates/issue.md) and [parent](templates/parent.md) bodies,
+[decisions](templates/decisions.md), the [mockup starter](templates/mockup.html)
+and the [PR description](templates/pr.md).
 
 ## Versioning
 

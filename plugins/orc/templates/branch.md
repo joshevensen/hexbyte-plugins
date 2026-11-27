@@ -1,28 +1,52 @@
 # Which branch an issue's work goes on
 
-Every orc skill that commits for an issue (`plan` for mockups, `build`,
-`walkthru`) resolves the branch the same way, in this order, and **never asks
-the engineer about it**:
+Resolved the same way every time, in this order, and **never asked about**.
+`{base}` is the repo's default branch.
 
-1. **The issue already has an open PR** — use that PR's branch. Find the PR
-   from the issue, not from a branch name: the most recent PR link in the
-   issue's comments (`issue-loader`'s **PR URL**), confirmed with
-   `gh-rest pr-view {pr}` (its `head_ref`, state OPEN). This is the case for a
-   rebuild, a walkthrough, and any session that picks up existing work.
-2. **The session's own branch** — otherwise, if the current branch
-   (`git rev-parse --abbrev-ref HEAD`) is not the default branch, use it,
-   provided that:
-   - it has no open PR for a different issue
-     (`gh-rest pr-find {current} open` is empty, or its body says
-     `Closes #{number}`), and
-   - it holds no commits of other work
-     (`git log --oneline origin/main..HEAD` is empty, or only touches this
-     issue's `.orc/mockups/{number}/`).
+1. **The issue already has a branch** — an open PR (the PR column of its
+   status row, or a PR link an earlier orc left in the issue's comments; its
+   `head_ref` from `gh-rest pr-view {pr}`) or the Branch column, when
+   `git fetch origin {branch}` finds it. Use it:
+   `git switch -C {branch} origin/{branch}`.
+2. **The session's own branch**, when it is free. The current branch
+   (`git rev-parse --abbrev-ref HEAD`) is free when it is not `{base}`, has
+   no open PR (`gh-rest pr-find {current} open` prints nothing), and holds no
+   unmerged work of its own (`git log --oneline origin/{base}..HEAD` is
+   empty, or shows only commits whose PR has merged). Claude Code on the web
+   gives every session one branch and expects pushes to go there. Restart it
+   from the latest base: `git fetch origin {base} && git switch -C {current} origin/{base}`.
+3. **A new branch** otherwise — a local session sitting on `{base}`, or the
+   session branch is held by a stopped issue's open PR:
+   `git switch -C orc/{number}-{slug} origin/{base}`, with `{slug}` the title
+   in lowercase with hyphens, at most five words.
 
-   Claude Code on the web gives each session its own branch and expects work
-   to be pushed there; using it avoids a permission question.
-3. **A new branch** — otherwise (e.g. a local session sitting on `main`),
-   create `issue/{number}-{slug}` with the slug from `issue-loader`.
+Children are built one after another, so rule 2 normally gives every child
+the same branch in turn: once a child's PR is squash-merged and its branch
+deleted, the next child restarts that branch from the new `{base}`.
 
-Call the result `{branch}`. Once a PR exists, rule 1 makes every later skill
-and session land on the same branch automatically.
+## Pushing
+
+- The first push of a child:
+  `git fetch --prune origin && git push --force-with-lease -u origin {branch}`.
+  The fetch matters: when an earlier child's branch of the same name was
+  merged and deleted, the local `origin/{branch}` ref is stale and git
+  rejects the push ("stale info") until it is pruned. The lease covers the
+  other case, where the name still exists on origin with an earlier, already
+  merged child's commits. Later pushes: `git push`.
+- Push after every commit that would be expensive to redo. A pushed branch
+  with its name in the status row is what a later session resumes from.
+
+## When a push is refused
+
+Some environments let a session push only its own branch.
+
+- **Rule 1 branch refused** (picking up another session's work): move the
+  commits to the branch rule 2 or 3 gives
+  (`git switch -C {new} origin/{branch}`), push, open a new PR whose body
+  says it replaces #{old}, then close the old one:
+  `gh-rest pr-comment {old} --body $'<!-- orc:note -->\nReplaced by #{new}.'`
+  and `gh-rest pr-close {old}`.
+- **Rule 3 branch refused**: this session can't build that issue. Leave its
+  row `queued` with the Note `needs a new session — this one can only push
+  its own branch`, go on to anything else that can still build, and say so in
+  the final report with the command to run.

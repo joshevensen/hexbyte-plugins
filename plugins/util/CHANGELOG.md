@@ -2,6 +2,31 @@
 
 Tracks the `util` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [0.5.0]
+
+For orc 2.0, which reads and writes no labels and sets up what it needs by
+itself.
+
+### Changed
+- `setup` is trimmed to what orc 2.0 reads: the `CLAUDE.md` verification
+  sections, the PR template, `CHANGELOG.md`, `dependabot.yml` and the
+  `.orc/tmp` ignore. It is now optional — `/orc:ship` adds the verification
+  sections and a PR template itself when they are missing
+- `setup` no longer asks before writing: it creates what is missing, never
+  replaces what exists (an existing PR template is kept as is), and opens a PR
+  with the result for you to review. It also records a `## Mutation Testing`
+  section when the repo already has a mutation tool configured
+- `review-security`, `review-impact` and `ci-debugger` synced with orc's
+  copies (wording only). The lint now fails if a shared agent drifts
+- `scripts/gh-rest` synced with orc's copy (`pr-checks --settle`, `pr-close`)
+
+### Removed
+- Label management: `setup`'s Labels step and its `manage-labels` and
+  `migrate-labels` scripts, including `--prune` and `.orc/config/labels`. orc
+  no longer uses `status:*`, `type:bug` or `orc:learned`; existing labels are
+  left alone, to keep or delete by hand
+- `setup` no longer creates `.orc/tmp/` itself or mentions `/orc:learn`
+
 ## [0.4.1]
 
 ### Changed

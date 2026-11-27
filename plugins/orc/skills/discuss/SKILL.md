@@ -47,8 +47,8 @@ When asked what something does:
   explain a guessed file. Read the handler and what it renders or returns,
   about five files at most, and say which you read.
 - **A PR** — `gh-rest pr-view {pr}` and `gh pr diff {pr}`; summarize by area
-  for a large diff. What changed, why (from the title, body, and orc's
-  Decisions comment if there is one), and what's risky.
+  for a large diff. What changed, why (from the title, body, and the
+  Decisions table on its issue if orc built it), and what's risky.
 
 State uncertainty plainly. Never invent the intent behind code — "I don't
 know why; nothing records it" is a fine answer.
@@ -57,6 +57,7 @@ know why; nothing records it" is a fine answer.
 
 1. If a topic was provided, acknowledge it, mention that saying **"green light"** will exit discussion mode, and start the discussion.
 2. If no topic was provided, ask what the user wants to explore, and mention that saying **"green light"** will exit discussion mode when ready.
-3. When the discussion settles on concrete work, offer to file it — end with
-   `➡️ Next: /orc:create — continue?`. On yes, run `/orc:create` with what was
-   discussed as the starting scope.
+3. When the discussion settles on concrete work, end with one line offering
+   both ways on: `➡️ Next: /orc:ship to build it now, or /orc:idea to note it
+   for later?` On an answer, run that skill with what was discussed as its
+   input. Anything else: carry on discussing.

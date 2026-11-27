@@ -1,13 +1,13 @@
 # hexbyte
 
-A Claude Code plugin marketplace. Three plugins for issue-to-PR automation, orc-pipeline utilities, and long-form writing.
+A Claude Code plugin marketplace. Three plugins: idea-to-merged-code automation, utilities around it, and long-form writing.
 
 ## Plugins
 
 | Plugin | What it does |
 |---|---|
-| [**orc**](plugins/orc/README.md) | Issue-to-PR automation for a GitHub-issue-driven workflow: interactive spec authoring plus autonomous build and review skills that open PRs. You do the final merge. |
-| [**util**](plugins/util/README.md) | Utility skills for the orc pipeline: Dependabot triage and repo scaffolding. |
+| [**orc**](plugins/orc/README.md) | One command from idea to merged code: a short interview, issues, mockups you approve in chat, then build, checks and squash-merge on its own. It stops only when the scope grew or it can't make progress, and never deploys. |
+| [**util**](plugins/util/README.md) | Utility skills around orc: Dependabot triage and optional repo scaffolding. |
 | [**ink**](plugins/ink/README.md) | Editorial workflow for long-form blog posts: brainstorm, develop, write, review, and publish. |
 
 ## Install

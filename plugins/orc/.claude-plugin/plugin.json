@@ -1,7 +1,7 @@
 {
   "name": "orc",
-  "description": "Issue-to-PR automation for GitHub-issue-driven work: discuss and spec issues interactively, then build them autonomously with parallel subagents, focused verification, and a folded-in AI review — interactive merge.",
-  "version": "1.0.0",
+  "description": "One command from idea to merged code: a short interview, build-ready issues, mockups approved in chat, then build, risk-scaled checks and squash-merge on its own — stopping only when the scope grew or it can't make progress. Never deploys.",
+  "version": "2.0.0",
   "author": {
     "name": "Josh Evensen"
   }

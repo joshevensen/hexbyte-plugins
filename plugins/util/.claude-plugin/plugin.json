@@ -1,7 +1,7 @@
 {
   "name": "util",
-  "description": "Utility skills for the orc pipeline: Dependabot triage and repo scaffolding — split out from orc to keep that plugin focused on the create/plan/build pipeline.",
-  "version": "0.4.1",
+  "description": "Utility skills around orc: Dependabot triage and optional repo scaffolding — split out so orc stays focused on taking an idea to merged code.",
+  "version": "0.5.0",
   "author": {
     "name": "Josh Evensen"
   }
