@@ -2,6 +2,25 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [1.0.0]
+
+### Breaking
+- `/orc:build` now requires Claude Code with workflows enabled. Without them
+  it stops at gate: missing infra, which says how to enable them. Unattended
+  runs need the `Workflow(...)` allow rule
+
+### Added
+- The `build-execute` workflow, `wave-integrator` and `test-prover` agents
+- Lint checks for workflows
+- README Workflows and permission docs
+
+### Changed
+- `build` runs steps 7–11 through the workflow
+- Tasks that share a file are serialized into separate waves
+- A failing focused check goes back to the implementer once, then trips
+  gate: verify
+- `build`'s invocation is unchanged
+
 ## [0.16.0]
 
 ### Added
