@@ -26,9 +26,13 @@ deleted, the next child restarts that branch from the new `{base}`.
 
 ## Pushing
 
-- The first push of a child: `git push --force-with-lease -u origin {branch}`
-  (the name may still exist on origin with an earlier, already merged
-  child's commits). Later pushes: `git push`.
+- The first push of a child:
+  `git fetch --prune origin && git push --force-with-lease -u origin {branch}`.
+  The fetch matters: when an earlier child's branch of the same name was
+  merged and deleted, the local `origin/{branch}` ref is stale and git
+  rejects the push ("stale info") until it is pruned. The lease covers the
+  other case, where the name still exists on origin with an earlier, already
+  merged child's commits. Later pushes: `git push`.
 - Push after every commit that would be expensive to redo. A pushed branch
   with its name in the status row is what a later session resumes from.
 
@@ -40,7 +44,7 @@ Some environments let a session push only its own branch.
   commits to the branch rule 2 or 3 gives
   (`git switch -C {new} origin/{branch}`), push, open a new PR whose body
   says it replaces #{old}, then close the old one:
-  `gh-rest pr-comment {old} --body $'<!-- orc:reply -->\nReplaced by #{new}.'`
+  `gh-rest pr-comment {old} --body $'<!-- orc:note -->\nReplaced by #{new}.'`
   and `gh-rest pr-close {old}`.
 - **Rule 3 branch refused**: this session can't build that issue. Leave its
   row `queued` with the Note `needs a new session — this one can only push

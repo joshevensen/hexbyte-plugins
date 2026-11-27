@@ -67,10 +67,10 @@ that are applied instead of deciding again.
 - **Text** — a new idea. Go to step 1.
 - **A number** — `{gh-rest} issue-view {n}`, then by what the issue is, first
   match wins:
-  1. **Closed** — say so in one line and stop.
-  2. **A child** (its `parent` is a number, or its body has a
-     `Part of #{p}` line) — the run belongs to the parent. Continue as if
-     `{p}` had been passed.
+  1. **A child** (its `parent` is a number, or its body has a
+     `Part of #{p}` line), open or closed — the run belongs to the parent.
+     Continue as if `{p}` had been passed.
+  2. **Closed** — say so in one line and stop.
   3. **A home issue** — its body starts with `<!-- orc:parent -->` or
      `<!-- orc:issue -->`. This is a **resume**: follow "Reading state" in
      `${CLAUDE_PLUGIN_ROOT}/templates/parent.md` and continue at the step it
@@ -166,7 +166,7 @@ step 4.
    is on a branch the home issue names. Then:
    ```bash
    git add .orc/mockups && git commit -m "docs: approved mockups for #{a}, #{b}"
-   git push --force-with-lease -u origin {branch}
+   git push --force-with-lease -u origin {branch}     # first push: see branch.md
    git rev-parse HEAD      # {sha}
    ```
    Write `Approved — commit {sha}` under Mockups in each of those issues, and
@@ -191,9 +191,11 @@ its Branch and write the home issue. Then, on the branch:
 
 - the first child of the run commits whatever Readiness set up
   (`chore: set up orc`);
-- if the child has mockups and `.orc/mockups/{number}/` isn't on the branch,
-  take them from the approval commit and commit them:
-  `git checkout {sha} -- .orc/mockups/{number}`.
+- if the child has approved mockups and `.orc/mockups/{number}/` isn't on the
+  branch (the PR that carried them hasn't merged), take them from the
+  approval commit and commit them:
+  `git fetch origin {sha} && git checkout {sha} -- .orc/mockups/{number}`.
+  (Not when step 3 is calling this: the files are still in the working tree.)
 
 #### 4.2 Implement
 
@@ -231,7 +233,10 @@ small change is one task.
    out until step 4.3.
 3. A failure goes back to the implementer that owns the file, with the
    output — or fix it yourself when it's trivial. Three attempts per wave;
-   still failing is a stop (can't make progress).
+   still failing is a stop (can't make progress). A command that can't run
+   here at all — a missing binary, service or secret — is not a failure:
+   record `not checked here: {command} — {why}` for the PR, and CI is what
+   checks it.
 4. Commit by explicit path (never `git add .`), `feat(#{number}): {summary}`
    or `fix(#{number}): {summary}`, and push. Add the wave's decisions to the
    issue's Decisions table (`${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`).
@@ -348,12 +353,21 @@ do the Learning pass in `${CLAUDE_PLUGIN_ROOT}/templates/decisions.md`
 
 ### 6. Open the PR and merge
 
+**Criteria first.** Go through the issue's acceptance criteria one by one and
+run each check: the command, the named test, or the behavior observed. Skip
+only what `CLAUDE.md` makes CI-only, and what can't run here (`not checked
+here`, as above). Tick each box that holds and write the issue back. One that
+doesn't hold gets fixed; one that can't be met inside the agreed scope is a
+stop. No PR opens with an unmet criterion.
+
 Write the description as `${CLAUDE_PLUGIN_ROOT}/templates/pr.md` describes and
-open the PR — ready for review, not a draft. Set the row to `PR open` with the
-PR number and write the home issue.
+open the PR — ready for review, not a draft. If the child already has an open
+PR (a resumed run, or one a stop opened), keep it and rewrite its description
+instead. Set the row to `PR open` with the PR number and write the home issue.
 
 ```bash
 {gh-rest} pr-create --base {base} --title "{issue title}" --body-file .orc/tmp/{number}-pr.md   # prints {number,url}
+{gh-rest} pr-edit {pr} --title "{issue title}" --body-file .orc/tmp/{number}-pr.md               # instead, when the PR exists
 ```
 
 Then loop until it merges or stops:
@@ -386,7 +400,9 @@ push are seen; leave it out otherwise.
 gh api user --jq .login        # the engineer's login
 ```
 
-Ignore every comment that starts with `<!-- orc:` — those are orc's own.
+Ignore every comment that starts with `<!-- orc:` — those are orc's own — and
+every conversation comment whose `id` already appears in the first line of an
+orc reply (`<!-- orc:reply {id} -->`): it has been handled.
 
 - **From the engineer** (their login, no marker): an instruction. Do it as
   worded.
@@ -395,11 +411,13 @@ Ignore every comment that starts with `<!-- orc:` — those are orc's own.
   real: invoke `finding-verifier` with the comment as the finding —
   CONFIRMED is fixed, REFUTED is declined with its evidence.
 - **Every one gets a reply** — the commit that fixed it, or the reason it
-  was declined in a sentence or two — starting with `<!-- orc:reply -->` on
-  its own line (`{gh-rest} pr-reply {pr} {first-comment-id} --body-file …`
-  for a thread, `{gh-rest} pr-comment {pr} --body-file …` otherwise). Then
-  resolve the thread: `{gh-rest} pr-resolve {pr} {first-comment-id}`. Record
-  each one as a decision row.
+  was declined in a sentence or two — whose first line is the marker
+  `<!-- orc:reply {id} -->`, `{id}` being the id of the comment it answers.
+  A thread: `{gh-rest} pr-reply {pr} {first-comment-id} --body-file …`, then
+  resolve it with `{gh-rest} pr-resolve {pr} {first-comment-id}`. A
+  conversation comment: `{gh-rest} pr-comment {pr} --body-file …` — the id in
+  the marker is what marks it handled. Record each one as a decision row
+  (Where: `PR comment`).
 - A comment blocks the merge only when it shows the scope was wrong — the fix
   needs work outside the agreed scope or changes agreed behavior. That is a
   stop.
@@ -432,7 +450,8 @@ If GitHub refuses the merge, stop with its message.
 2. With a parent: rewrite the summary comment
    (`${CLAUDE_PLUGIN_ROOT}/templates/parent.md`) — what shipped, decisions
    made without the engineer, deploy notes, new rules.
-3. `git fetch origin {base}`, and go back to step 4.
+3. `git fetch --prune origin`, so the next child starts from the new
+   `{base}` and the deleted branch's stale ref is gone, and go back to step 4.
 
 When every row is `merged`: with a parent, `{gh-rest} issue-close {parent}`.
 Then step 9.

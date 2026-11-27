@@ -153,7 +153,7 @@ in order:
 | PR open | `gh-rest pr-view {pr}` | `MERGED` → do the after-merge bookkeeping that's missing, skip. `OPEN` → check out its branch and continue at the merge stage. `CLOSED` → treat as stopped: "its PR was closed without merging" |
 | building | `git fetch origin {branch}`; `gh-rest pr-find {branch} all` | a PR exists → as **PR open**. The branch exists → check it out and continue the build from what is committed: compare `git diff origin/{base}...HEAD` with the acceptance criteria and do what is missing. Neither → build it from the start |
 | queued | every issue in Needs is merged | build it when its turn comes |
-| stopped | the stop comment on that issue, and anything the engineer wrote on the issue or its PR after it | answered → apply the answer, update the issue body if scope changed, set the row back to `queued` (or `PR open`) and continue. Not answered → ask the stop comment's question, recommendation first; this is the one question a resume may ask. `waits on #{n}` → clears when #{n} merges |
+| stopped | the stop comment on that issue, and anything the engineer wrote on the issue or its PR after it | answered → apply the answer, update the issue body if scope changed, then continue from where the stop comment says it stands: an unfinished build becomes a **building** row (its branch and any PR are kept, and the work continues from what is committed); a PR that was only waiting on CI, comments or a conflict becomes **PR open**; nothing built becomes `queued`. Not answered → ask the stop comment's question, recommendation first; this is the one question a resume may ask. `waits on #{n}` → back to `queued` once #{n} is merged |
 
 Before the rows:
 

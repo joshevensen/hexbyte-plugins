@@ -20,6 +20,9 @@ decide, record, and keep moving.
 
 ## When to ask
 
+These rules are for work being shipped. `/orc:discuss` is a conversation:
+there, ask whatever makes the discussion better.
+
 Ask only when one of these holds:
 
 - **The answer changes what gets built** — scope, behavior a user sees, what
@@ -67,6 +70,8 @@ so.
 ## Comments on GitHub
 
 Every comment or reply orc posts starts with an `<!-- orc:{kind} -->` marker
-on its own first line. Comments post under the engineer's own login, so the
-marker is the only thing that tells orc's words from theirs: a comment
-without it is the engineer's (or a reviewer's) and is never orc's.
+on its own first line; a reply to a PR comment also names the comment it
+answers (`<!-- orc:reply {comment id} -->`). Comments post under the
+engineer's own login, so the marker is the only thing that tells orc's words
+from theirs: a comment without it is the engineer's (or a reviewer's) and is
+never orc's.
