@@ -2,6 +2,113 @@
 
 Tracks the `orc` plugin's `version` in `.claude-plugin/plugin.json`. Bump that field with every change you want installed copies to receive — Claude Code caches plugins by version, so pushing commits alone does not update anyone already on a pinned version. Follow [semver](https://semver.org): MAJOR for breaking changes, MINOR for new features, PATCH for fixes.
 
+## [2.0.0]
+
+orc rebuilt around one command. `/orc:ship` takes an idea from a sentence to
+merged code in one session: a short interview, build-ready issues, mockups
+approved in chat, then build, check and squash-merge on its own. It asks only
+what changes what gets built, and alerts you only when the scope grew or it
+can't make progress. It never deploys.
+
+### Breaking
+- `/orc:create`, `/orc:plan`, `/orc:build`, `/orc:walkthru`, `/orc:learn` and
+  `/orc:status` are gone. Use `/orc:ship [idea | issue number | parent issue
+  number]`; to record an idea without building it, `/orc:idea`
+- orc merges by itself when CI is green. There is no approval of specs,
+  findings or merges; mockups are the only thing you approve
+- orc reads and writes no labels. `status:*`, `type:bug` and `orc:learned`
+  are ignored and can be deleted
+- The `build-execute` workflow is gone, and with it the requirement that
+  workflows be enabled and the `Workflow(...)` allow rule
+- `--dry-run` is gone from orc's skills
+
+### Added
+- `/orc:ship` — interview, issues, mockups, build, merge and report in one
+  session. A clear, small request skips the interview. Running it again on an
+  issue or parent number resumes from GitHub state alone
+- `/orc:idea` — files one issue from what you said, asks nothing, and marks it
+  so `/orc:ship {number}` interviews only about what the note left open
+- Risk tiers. Light changes get the repo's verification commands and CI.
+  Standard adds one independent reviewer whose findings a verifier must fail
+  to disprove. Heavy adds the four-way review, a deploy scan, mutation or
+  coverage checks where the repo has them, and an audit of the decision
+  record. Surviving findings are fixed in the PR, never deferred
+- A parent issue that manages split work until every child is merged: goal,
+  shared context, ordered build plan, a status table (queued, building, PR
+  open, merged, stopped with the reason), and one summary comment that
+  accumulates what shipped, decisions made without you, deploy notes and new
+  rules. A single issue carries its own one-row status table
+- Stop conditions — the only alerts: the scope grew, an approved mockup can't
+  be built as drawn, a decision contradicts a `CLAUDE.md` rule, or no
+  progress is possible. A stop pauses that issue and its dependents, leaves
+  the PR open, posts the exact reason on the issue, and the run carries on
+  with independent issues
+- Mockups shown in the chat (a private Artifact when available) and all
+  approved up front; a visual check that screenshots each built page and
+  state against its mockup and attaches the pairs to the PR
+- Deploy notes: a risky change merges with a "before you deploy" list in the
+  PR and the parent's summary
+- Automatic learning: a choice made the same way on three issues becomes a
+  rule in `.orc/decisions/resolved.md` and is listed in the report; delete it
+  to veto it, and it stays deleted
+- First-run readiness: missing `CLAUDE.md` verification sections, PR template
+  or `.orc/tmp` ignore are added with the first PR instead of failing
+- `decision-auditor` agent (Heavy changes)
+- Templates: `interview.md`, `issue.md`, `parent.md`, `pr.md`,
+  `readiness.md`, `pull-request-template.md`
+- `gh-rest pr-checks --settle S` (keeps watching for S seconds, so a merge
+  can't slip in before CI has registered its checks) and `gh-rest pr-close`
+- Lint: required skills exist; every `/orc:` and `/util:` reference names a
+  real skill; every `gh-rest` command called exists; no template or script is
+  orphaned; nothing in orc depends on a label; shared agents and the PR
+  template match between plugins; the util plugin gets the same frontmatter,
+  path and version checks. An agent no skill invokes is now an error
+
+### Changed
+- `working-style.md` rewritten: ask only when the answer changes what gets
+  built, a mockup needs approval, or a stop fired; every question carries a
+  recommendation; every orc comment starts with an `<!-- orc:… -->` marker
+- `decisions.md` rewritten: one Decisions table per issue, in the issue body;
+  `.orc/decisions/resolved.md` (same format as before 0.15) is applied before
+  deciding, and `.orc/decisions/made.md` is the history learning counts from
+- `branch.md` rewritten: children reuse the session's branch one after
+  another; a new `orc/{number}-{slug}` branch only when that one is taken
+- The spec is the issue body, written by orc and self-checked, instead of a
+  comment you approve
+- PRs open ready for review once the work is built and checked, rather than
+  as a draft at the first push; pushed branches carry the state until then
+- `implementer`, `test-writer`, the four review agents, `finding-verifier`,
+  `deploy-risk-scanner`, `ci-debugger` and `conflict-classifier` are kept and
+  reworded for the new flow. `deploy-risk-scanner` no longer raises a
+  question for a destructive change: it lists it first in the notes
+- `/orc:discuss` is unchanged except that it now offers `/orc:ship` or
+  `/orc:idea` when a discussion settles on concrete work
+
+### Removed
+- Skills `create`, `plan`, `build`, `walkthru`, `learn`, `status` — replaced
+  by `ship` (and `idea`). Resuming and status are `ship` on a number; learning
+  is automatic
+- `workflows/build-execute.js`, and the `wave-integrator` and `test-prover`
+  agents that existed to serve it. The workflow was built around the S/M/L
+  paths, mid-build questions and gates this version drops, and it made
+  "workflows enabled" a reason a run could fail. `ship` runs git and the
+  agents itself. Red-against-base stays, done by `ship` where a focused run is
+  cheap; hand-planted breaks and gap-fill rounds are dropped, and mutation or
+  coverage runs only on Heavy changes in repos that already have the tool
+- `spec-writer` and `spec-critic` — `ship` writes the spec after its own
+  research and runs the critic's checks itself; nobody approves specs
+- `issue-loader` — one `gh-rest issue-view` call, and there are no status
+  labels left to extract
+- `pr-context-writer` — its inline "why / look closely / skim" comments were
+  for a line-by-line human review that no longer happens. The PR description
+  carries the choices, what to scrutinize and what to skim
+- `changelog-writer` — `ship` writes the entry while it still has the change
+  in context
+- Templates `spec.md` (now `issue.md`), `build-plan.md` (now `parent.md`) and
+  `ai-review.md` (findings are fixed, not reported)
+- The Decisions, criteria-ledger, AI-review and Deploy-notes PR comments, the
+  gate procedure, and the next-step handoff lines
+
 ## [1.0.0]
 
 ### Breaking

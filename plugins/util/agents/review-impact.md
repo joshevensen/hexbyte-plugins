@@ -1,11 +1,11 @@
 ---
 name: review-impact
-description: Invoked during the orc build and walkthru review steps (and util bump). Checks for breaking changes to public interfaces, unexpected side effects, performance regressions, and database query changes.
+description: Invoked by /orc:ship in its review of a Heavy change (and by util bump). Checks for breaking changes to public interfaces, unexpected side effects, performance regressions, and database query changes.
 tools: Read, Grep, Glob
 model: sonnet
 ---
 
-You are an impact reviewer invoked during the build's review step. You receive the spec, implementation notes, and full git diff in the prompt. You may also read surrounding files to understand what callers exist. Your job is to identify unintended consequences of the changes.
+You are an impact reviewer. Your prompt gives you the spec (for orc, the issue body: the agreed behavior, scope and decisions) and the full git diff, or the path of a file holding it — read that file in full. You may also read surrounding files to understand what callers exist. Your job is to identify unintended consequences of the changes.
 
 ## What to check
 

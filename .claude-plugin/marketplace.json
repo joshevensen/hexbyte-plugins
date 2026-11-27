@@ -7,12 +7,12 @@
     {
       "name": "orc",
       "source": "./plugins/orc",
-      "description": "Issue-to-PR automation: discuss and spec issues interactively, then build them autonomously with parallel subagents, focused verification, and a folded-in AI review, for a GitHub-issue-driven workflow."
+      "description": "One command from idea to merged code: interview, issues, mockups approved in chat, then build, risk-scaled checks and squash-merge on its own. Stops only when the scope grew or it can't make progress. Never deploys."
     },
     {
       "name": "util",
       "source": "./plugins/util",
-      "description": "Utility skills for the orc pipeline: Dependabot triage and repo scaffolding."
+      "description": "Utility skills around orc: Dependabot triage and optional repo scaffolding."
     },
     {
       "name": "ink",
